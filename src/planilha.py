@@ -1,7 +1,6 @@
 #src/planilha.py
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
-# from ui.entrada import DataEntryForm  # Comentado pois não é necessário para o exemplo
 
 # Create a new workbook
 class planilhaContagem:
@@ -9,7 +8,7 @@ class planilhaContagem:
         self.filename = filename
         self.wb = Workbook()
         self.entrada = self.abaEntrada(self.wb)
-        self.resumo = self.abaResumo(self.wb)
+        self.resumo = self.abaRelatorio(self.wb)
 
     # Create first sheet
     class abaEntrada:
@@ -51,10 +50,10 @@ class planilhaContagem:
                 data_cells = [
                     ('C1', data.get("Ponto", "")),
                     ('C2', data.get("Data", "")),
-                    ('C3', data.get("Num_Movimentos", "0")),
-                    ('C4', data.get("Localização", "0")),
-                    ('C5', data.get("Duração em dias", "0")),
-                    ('C6', data.get("Duração em horas", "0")),
+                    ('C3', data.get("Num_Movimentos")),
+                    ('C4', data.get("Localização")),
+                    ('C5', data.get("Duração em dias")),
+                    ('C6', data.get("Duração em horas")),
                     ('C7', data.get("Periodo_Inicio", "")),
                     ('C8', data.get("Periodo_Fim", ""))
                 ]
@@ -73,14 +72,14 @@ class planilhaContagem:
                     cell.border = self.border
 
     # Create second sheet
-    class abaResumo:
+    class abaRelatorio:
         def __init__(self, wb):
             self.wb = wb
-            self.sheet2 = self.wb.create_sheet(title="Resumo")
+            self.sheet2 = self.wb.create_sheet(title="Relatório")
 
             # Definir estilos para a aba de resumo
-            self.header_font = Font(bold=True, size=14)
-            self.header_fill = PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid")
+            self.header_font = Font(bold=True, size=12, color="FF0000")
+            self.header_fill = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
             self.border = Border(
                 left=Side(style='medium'),
                 right=Side(style='medium'),
@@ -88,18 +87,25 @@ class planilhaContagem:
                 bottom=Side(style='medium')
             )
 
-        def add_data(self):
-            # Aplicar formatação ao cabeçalho
-            cell = self.sheet2['A1']
-            cell.value = "Total"
-            cell.font = self.header_font
-            cell.fill = self.header_fill
-            cell.border = self.border
+        def add_header(self):
+            self.sheet2['B2'] = "Data"
+            self.sheet2['B3'] = "Movimentos"
 
-            # Aplicar formatação à célula com fórmula
-            cell = self.sheet2['A2']
-            cell.value = "=SUM(Entrada!B2:B3)"  # Formula referencing Sheet1
-            cell.border = self.border
+        def add_header_value(self, data=None):
+            if data:
+                mov_nomes = data.get("Movimentos", [])[0] if data.get("Movimentos", []) else ""
+                ponto = data.get("Ponto", "")
+                movimento_concatenado = f"{ponto}{mov_nomes}" if ponto and mov_nomes else mov_nomes
+                header_values = [
+                    ('C2', data.get("Data", "")),
+                    ('C3', movimento_concatenado)
+                ]
+                for header_pos, value in header_values:
+                    header_value = self.sheet2[header_pos]
+                    header_value.value = value
+                    header_value.font = self.header_font
+
+
 
     def save(self):
         # Ajustar largura das colunas automaticamente
@@ -115,5 +121,7 @@ class planilhaContagem:
                 adjusted_width = min((max_length + 2),100)
                 sheet.column_dimensions[column].width = adjusted_width
 
-        self.wb.save(self.filename)
+
+        # Salvar na pasta output/
+        self.wb.save(f"output/{self.filename}")
         print(f"Planilha salva como {self.filename}")

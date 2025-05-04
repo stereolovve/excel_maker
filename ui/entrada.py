@@ -77,7 +77,7 @@ class DataEntryForm(ft.Column):
             "Ponto": self.ponto.value,
             "Data": self.data_inicio.value,
             "Localização": self.localizacao.value,
-            "Numero Movimentos": self.num_movimento.value,
+            "Num_Movimentos": self.num_movimento.value,
             "Duração em dias": self.duracao_dias.value,
             "Duração em horas": self.duracao_horas.value,
             "Periodo_Inicio": self.hora_inicio.value,

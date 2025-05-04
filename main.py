@@ -15,7 +15,8 @@ def main(page: ft.Page):
     def save_to_excel(data):
         wb = planilhaContagem()
         wb.entrada.add_data(data)
-        wb.resumo.add_data()
+        wb.resumo.add_header()
+        wb.resumo.add_header_value(data)
         wb.save()
         page.snack_bar = ft.SnackBar(content=ft.Text("Dados salvos com sucesso na planilha!"))
         page.snack_bar.open = True
