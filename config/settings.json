@@ -1,0 +1,21 @@
+{
+    "input_file": "bases/Base Q2.xlsx",
+    "output_file": "output/Base Q2_v2.xlsx",
+    "sheets": {
+        "input_sheet": "Entrada",
+        "report_sheet": "D1 15 mins",
+        "hour_sheet": "D1 Hr Graf"
+    },
+
+    "cells": {
+        "ponto_cell": "D6",
+        "num_movimentos_cell": "D8"
+    },
+    
+    "table_dimensions": {
+        "first_row": 1,
+        "last_row": 101,
+        "hr_first_row": 1,
+        "hr_last_row": 30
+    }
+}
