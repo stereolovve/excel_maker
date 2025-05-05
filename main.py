@@ -17,6 +17,7 @@ def main(page: ft.Page):
         wb.entrada.add_data(data)
         wb.resumo.add_header()
         wb.resumo.add_header_value(data)
+        wb.resumo.add_vehicle_columns()
         wb.save()
         page.snack_bar = ft.SnackBar(content=ft.Text("Dados salvos com sucesso na planilha!"))
         page.snack_bar.open = True

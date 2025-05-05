@@ -88,8 +88,8 @@ class planilhaContagem:
             )
 
         def add_header(self):
-            self.sheet2['B2'] = "Data"
-            self.sheet2['B3'] = "Movimentos"
+            self.sheet2['B1'] = "Data:"
+            self.sheet2['B2'] = "Movimento:"
 
         def add_header_value(self, data=None):
             if data:
@@ -97,15 +97,97 @@ class planilhaContagem:
                 ponto = data.get("Ponto", "")
                 movimento_concatenado = f"{ponto}{mov_nomes}" if ponto and mov_nomes else mov_nomes
                 header_values = [
-                    ('C2', data.get("Data", "")),
-                    ('C3', movimento_concatenado)
+                    ('C1', data.get("Data", "")),
+                    ('C2', movimento_concatenado)
                 ]
                 for header_pos, value in header_values:
                     header_value = self.sheet2[header_pos]
                     header_value.value = value
                     header_value.font = self.header_font
+        
+        def add_vehicle_columns(self):
+            # Lista para mesclar celulas
+            merged_areas = [
+                'B3:C3',  # Hora
+                'D3:D4',  # Leves
+                'E3:G3',  # Carretinha
+                'H3:H4',  # VUC
+                'I3:K3',  # Caminhões
+                'L3:R3',  # Carretas
+                'S3:T3',  # Ônibus
+                'U3:U4',  # Motos
+                'V3:AC3',  # Pesados
+                'AD3:AD4'  # Veiculos Totais
+            ]
+            # Aplicar mesclagem nas áreas definidas
+            for header_info in merged_areas:
+                self.sheet2.merge_cells(header_info)
+            
+            # Dar nome para as colunas mescladas
+            headers = [
+                ('B3', "Horas"),
+                ('D3', "Leves"),
+                ('E3', "Carretinha"),
+                ('H3', "VUC"),
+                ('I3', "Caminhões"),
+                ('L3', "Carreta"),
+                ('S3', "Ônibus"),
+                ('U3', "Motos"),
+                ('V3', "Pesados"),
+                ('AD3', "Veículos Totais"),
+            ]
 
+            for header_info in headers:
+                cell = self.sheet2[header_info[0]]
+                cell.value = header_info[1]
 
+            # Estilo para cabeçalhos principais
+            header_style = Font(bold=True, size=11)
+            header_fill = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
+            header_border = Border(
+                left=Side(style='thin'),
+                right=Side(style='thin'),
+                top=Side(style='thin'),
+                bottom=Side(style='thin'),
+                diagonal=Side(style='thin'),
+
+            )
+            center_align = Alignment(horizontal='center', vertical='center')
+
+            # Aplicar cabeçalhos principais
+            for header_info in merged_areas:
+                for row in self.sheet2[header_info]:
+                    for cell in row:
+                        cell.border = self.border
+                        cell.alignment = center_align
+
+            # Adicionar subcategorias na linha 5
+            subcategories = [
+                ('B4', "das"), ('C4', "as"),
+                ('E4', "1 Eixo"), ('F4', "2 Eixos"), ('G4', "3 Eixos"), 
+                ('I4', "2 Eixos"), ('J4', "3 Eixos"), ('K4', "4 Eixos"),
+                ('L4', "2 E"), ('M4', "3 E"), ('N4', "4 E"), ('O4', "5 E"), ('P4', "6 E"), ('Q4', "7 E"), ('R4', "8 E"),
+                ('S4', "2 E"), ('T4', "3 E ou +"),
+                ('V4', "% Cam"), ('w4', "Caminhões"), ('x4', "% Carr"), ('Y4', "Carretas"), ('Z4', "% Ônib"), ('AA4', "Ônibus"), ('AB4', "% Pes"), ('AC4', "Total")
+            ]
+
+            # Estilo para subcategorias
+            subcat_style = Font(size=10)
+            subcat_border = Border(
+                left=Side(style='thin'),
+                right=Side(style='thin'),
+                top=Side(style='thin'),
+                bottom=Side(style='thin')
+            )
+            subcat_align = Alignment(horizontal='center', vertical='center')
+
+            # Aplicar subcategorias
+            for cell_pos, value in subcategories:
+                cell = self.sheet2[cell_pos]
+                cell.value = value
+                cell.font = subcat_style
+                cell.border = subcat_border
+                cell.alignment = subcat_align
 
     def save(self):
         # Ajustar largura das colunas automaticamente
