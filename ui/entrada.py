@@ -9,8 +9,9 @@ class DataEntryForm(ft.Column):
         self.page = page
         super().__init__()
         
-
         # Create fixed input fields
+        self.cliente = ft.TextField(label="Cliente", width=400)
+        self.codigo = ft.TextField(label="Código", width=400)
         self.ponto = ft.TextField(label="Ponto", width=400)
         self.data_inicio = ft.TextField(
             label="Data (DD-MM-YYYY)",
@@ -45,6 +46,8 @@ class DataEntryForm(ft.Column):
         self.save_button = ft.ElevatedButton(text="Salvar", on_click=self.save_data, width=float('inf'))
 
         self.controls = [
+            self.cliente,
+            self.codigo,
             self.ponto,
             self.data_inicio,
             self.localizacao,
@@ -74,6 +77,8 @@ class DataEntryForm(ft.Column):
         
     def save_data(self, e):
         data = {
+            "Cliente": self.cliente.value,
+            "Código": self.codigo.value,
             "Ponto": self.ponto.value,
             "Data": self.data_inicio.value,
             "Localização": self.localizacao.value,

@@ -5,8 +5,8 @@ from datetime import datetime, timedelta
 
 # Create a new workbook
 class planilhaContagem:
-    def __init__(self, filename="Planilha_Contagem.xlsx"):
-        self.filename = filename
+    def __init__(self, codigo="",ponto=""):
+        self.filename = f"{codigo}_{ponto}.xlsx"
         self.wb = Workbook()
         self.entrada = self.abaEntrada(self.wb)
         self.resumo = self.abaRelatorio(self.wb)
@@ -49,6 +49,7 @@ class planilhaContagem:
             if data:
                 # Mapeamento de células e valores
                 data_cells = [
+                    
                     ('C1', data.get("Ponto", "")),
                     ('C2', data.get("Data", "")),
                     ('C3', data.get("Num_Movimentos")),
@@ -246,13 +247,65 @@ class planilhaContagem:
 
                 # Aplicar formulas de porcentagem
                 self.sheet2[f'V{row}'].value = formula_perc_caminhoes
-                self.sheet2[f'V{row}'].number_format = '0.00%'
+                self.sheet2[f'V{row}'].number_format = '0.0%'
                 self.sheet2[f'X{row}'].value = formula_perc_carretas
-                self.sheet2[f'X{row}'].number_format = '0.00%'
+                self.sheet2[f'X{row}'].number_format = '0.0%'
                 self.sheet2[f'Z{row}'].value = formula_perc_onibus
-                self.sheet2[f'Z{row}'].number_format = '0.00%'
+                self.sheet2[f'Z{row}'].number_format = '0.0%'
                 self.sheet2[f'AB{row}'].value = formula_perc_pesados
-                self.sheet2[f'AB{row}'].number_format = '0.00%'
+                self.sheet2[f'AB{row}'].number_format = '0.0%'
+
+        def add_footer_vehicles(self):
+            # Linha do rodapé
+            footer_row = 101
+
+            # Mesclar celula total
+            merged_areas = [
+                f'B{footer_row}:C{footer_row}'
+            ]
+
+            # Aplicar mesclagem nas áreas definidas
+            for footer_info in merged_areas:
+                self.sheet2.merge_cells(footer_info)
+                for row in self.sheet2[footer_info]:
+                    for cell in row:
+                        cell.border = self.border
+
+            # Aplicar fórmula de soma para as colunas D até U na linha do rodapé
+            for col in range(ord('D'), ord('U') + 1): # percorre do D  até U
+                col_letter = chr(col)
+                formula = f"=SUM({col_letter}4:{col_letter}100)"
+                self.sheet2[f"{col_letter}{footer_row}"].value = formula
+                self.sheet2[f"{col_letter}{footer_row}"].border = self.border
+
+        def add_footer_total(self):
+            footer_row = 101
+
+            
+
+            # Criar e aplicar as formulas de percentual
+            columns_perc = ['V', 'X', 'Z', 'AB']
+            for col_letter in columns_perc:
+                formula = f"=IFERROR(({col_letter}4:{col_letter}100), 0)"
+                self.sheet2[f"{col_letter}{footer_row}"].value = formula
+                self.sheet2[f"{col_letter}{footer_row}"].border = self.border
+
+            # Criar e aplicar as formulas de total pesados
+            self.sheet2[f'W{footer_row}'].value = f"=SUM(I{footer_row}:K{footer_row})"
+            self.sheet2[f'W{footer_row}'].border = self.border
+
+            self.sheet2[f'Y{footer_row}'].value = f"=SUM(L{footer_row}:R{footer_row})"
+            self.sheet2[f'Y{footer_row}'].border = self.border
+
+            self.sheet2[f'AA{footer_row}'].value = f"=SUM(S{footer_row}:T{footer_row})"
+            self.sheet2[f'AA{footer_row}'].border = self.border
+
+            self.sheet2[f'AC{footer_row}'].value = f"=SUM(W{footer_row},Y{footer_row},AA{footer_row})"
+            self.sheet2[f'AC{footer_row}'].border = self.border
+
+            # Formula veiculos totais
+            self.sheet2[f'AD{footer_row}'].value = f"=SUM(D{footer_row}:H{footer_row},AC{footer_row})"
+            self.sheet2[f'AD{footer_row}'].border = self.border
 
 
     def save(self):
