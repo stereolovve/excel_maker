@@ -1,6 +1,7 @@
 #src/planilha.py
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
+from openpyxl.styles import Font, PatternFill, Border, Side, Alignment, NamedStyle
+from datetime import datetime, timedelta
 
 # Create a new workbook
 class planilhaContagem:
@@ -188,6 +189,71 @@ class planilhaContagem:
                 cell.font = subcat_style
                 cell.border = subcat_border
                 cell.alignment = subcat_align
+
+        def add_time_intervals(self):
+            # Criar uma formatação NamedStyle
+            time_style = NamedStyle(name="time")
+            time_style.alignment = Alignment(horizontal='center', vertical='center')
+            thin = Side(border_style="thin")
+            thick = Side(border_style="thick")
+            time_style.border = Border(top=thin, left=thick, right=thick, bottom=thin)
+            # Criar laço para preencher a coluna "das" de 15 em 15 minutos até dar 23:59
+            das_inicio = datetime.strptime("00:00", "%H:%M")
+            as_inicio = datetime.strptime("00:15","%H:%M")
+            das_fim = datetime.strptime("23:45", "%H:%M")
+            as_fim = datetime.strptime("23:59", "%H:%M")
+            cell_das_inicio = self.sheet2['B5']
+            cell_as_inicio = self.sheet2['C5']
+
+            while das_inicio <= das_fim and as_fim:
+                cell_das_inicio.value = das_inicio.strftime("%H:%M")
+                cell_das_inicio.style = time_style
+                cell_as_inicio.value = as_inicio.strftime("%H:%M")
+                cell_as_inicio.style = time_style
+                cell_das_inicio = self.sheet2.cell(row=cell_das_inicio.row + 1, column=cell_das_inicio.column)
+                cell_as_inicio = self.sheet2.cell(row=cell_as_inicio.row + 1, column=cell_as_inicio.column)
+                das_inicio += timedelta(minutes=15)
+                as_inicio += timedelta(minutes=15)
+        
+        def add_total_vehicles(self):
+            # Criar uma formatação com NamedStyled
+
+
+            start_row = 5
+            end_row = 100
+
+            # Loop para iterar entre star e end
+            for row in range(start_row, end_row + 1):
+                # Formulas de total 
+                formula_caminhoes = f"=SUM(I{row}:K{row})"
+                formula_carretas = f"=SUM(L{row}:R{row})"
+                formula_onibus = f"=SUM(S{row}:T{row})"
+                formula_total_pesados = f"=SUM(W{row},Y{row},AA{row})"
+                formula_total_vehicles = f"=SUM(D{row}:H{row},AC{row})"
+
+                # Aplicas as formulas em cada celula
+                self.sheet2[f'W{row}'].value = formula_caminhoes
+                self.sheet2[f'Y{row}'].value = formula_carretas
+                self.sheet2[f'AA{row}'].value = formula_onibus
+                self.sheet2[f'AC{row}'].value = formula_total_pesados
+                self.sheet2[f'AD{row}'].value = formula_total_vehicles
+
+                # Formula de percentual
+                formula_perc_caminhoes = f"=IFERROR(W{row}/AD{row}, 0)"
+                formula_perc_carretas = f"=IFERROR(Y{row}/AD{row}, 0)"
+                formula_perc_onibus = f"=IFERROR(AA{row}/AD{row}, 0)"
+                formula_perc_pesados = f"=IFERROR(AC{row}/AD{row}, 0)"
+
+                # Aplicar formulas de porcentagem
+                self.sheet2[f'V{row}'].value = formula_perc_caminhoes
+                self.sheet2[f'V{row}'].number_format = '0.00%'
+                self.sheet2[f'X{row}'].value = formula_perc_carretas
+                self.sheet2[f'X{row}'].number_format = '0.00%'
+                self.sheet2[f'Z{row}'].value = formula_perc_onibus
+                self.sheet2[f'Z{row}'].number_format = '0.00%'
+                self.sheet2[f'AB{row}'].value = formula_perc_pesados
+                self.sheet2[f'AB{row}'].number_format = '0.00%'
+
 
     def save(self):
         # Ajustar largura das colunas automaticamente
