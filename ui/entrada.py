@@ -2,17 +2,24 @@
 
 import flet as ft
 from datetime import datetime
+import os
+import requests
+from config.config import API_URL
 
 class DataEntryForm(ft.Column):
     def __init__(self, page, on_save_callback=None):
-        self.on_save_callback = on_save_callback
-        self.page = page
         super().__init__()
+        self.on_save_callback = on_save_callback
+        self.base_api = API_URL.rstrip("/") + "/trabalhos/api/"
+        self.page = page
         
+        
+    
+
         # Create fixed input fields
-        self.cliente = ft.TextField(label="Cliente", width=400)
-        self.codigo = ft.TextField(label="Código", width=400)
-        self.ponto = ft.TextField(label="Ponto", width=400)
+        self.cliente = ft.Dropdown(label="Cliente", width=400, options=[], on_change=self.on_cliente_change)
+        self.codigo = ft.Dropdown(label="Código", width=400, options=[], on_change=self.on_codigo_change)
+        self.ponto = ft.Dropdown(label="Ponto", width=400, options=[])
         self.data_inicio = ft.TextField(
             label="Data (DD-MM-YYYY)",
             value=datetime.now().strftime("%d-%m-%Y")
@@ -59,7 +66,59 @@ class DataEntryForm(ft.Column):
             self.movement_container,
             self.save_button
         ]   
+        self.load_clientes()
+        # Buscar os clientes
+    def load_clientes(self):
+        url = self.base_api + "clientes/"
+        # Implement API call to fetch clients
+        response = requests.get(url)
+            
+        clientes = response.json()
+        self.cliente.options = [
+            ft.dropdown.Option(text=c["nome"], key=str(c["id"]))
+            for c in clientes
+        ]
+        self.page.update()
 
+    def on_cliente_change(self, e):
+        """
+        Quando usuário seleciona um cliente,
+        busca os códigos relacionados e atualiza o dropdown.
+        """
+        cliente_id = e.control.value
+
+        url = self.base_api + "codigos/"
+
+        self.codigo.options = []
+        self.codigo.value = None
+        self.ponto.options = []
+        self.ponto.value = None
+
+        response = requests.get(url)
+        response.raise_for_status()
+        codigos = [
+            cod for cod in response.json()
+            if str(cod["id"]) == cliente_id
+        ]
+        self.codigo.options = [
+            ft.dropdown.Option(text=c["codigo"], key=str(c["id"])) 
+            for c in codigos
+        ]
+
+        self.page.update()
+
+    def on_codigo_change(self, e):
+        codigo_id = e.control.value
+        self.ponto.options = []
+        self.ponto.value = None
+
+        url = f"{self.base_api}pontos/?codigo={codigo_id}"
+        response = requests.get(url)
+        pontos = response.json()
+        self.ponto.options = [
+            ft.dropdown.Option(text=p["nome"], key=str(p["id"])) for p in pontos
+        ]
+        self.page.update()
     def dynamic_movement_field(self, e):
         num = int(self.num_movimento.value)
         if num < 0:
@@ -76,10 +135,24 @@ class DataEntryForm(ft.Column):
         
         
     def save_data(self, e):
+        cliente_id = self.cliente.value
+        codigo_id = self.codigo.value
+        ponto_id = self.ponto.value
+
+        cliente_name = next(
+            opt.text for opt in self.cliente.options if opt.key == cliente_id
+        )
+        codigo_name = next(
+            opt.text for opt in self.codigo.options if opt.key == codigo_id
+        )
+        ponto_name = next(
+            opt.text for opt in self.ponto.options if opt.key == ponto_id
+        )
+
         data = {
-            "Cliente": self.cliente.value,
-            "Código": self.codigo.value,
-            "Ponto": self.ponto.value,
+            "Cliente": cliente_name,
+            "Código": codigo_name,
+            "Ponto": ponto_name,
             "Data": self.data_inicio.value,
             "Localização": self.localizacao.value,
             "Num_Movimentos": self.num_movimento.value,

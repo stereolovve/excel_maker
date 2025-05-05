@@ -3,6 +3,7 @@ import flet as ft
 from ui.entrada import DataEntryForm
 from src.planilha import planilhaContagem
 
+
 def main(page: ft.Page):
     page.title = "Entrada de Dados"
     page.vertical_alignment = ft.MainAxisAlignment.START
