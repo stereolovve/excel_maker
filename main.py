@@ -24,6 +24,12 @@ def main(page: ft.Page):
         wb.resumo.add_total_vehicles()
         wb.resumo.add_footer_vehicles()
         wb.resumo.add_footer_total()
+        wb.hr.add_header()
+        wb.hr.add_vehicle_columns()
+        wb.hr.add_time_intervals()
+        wb.hr.add_total_vehicles()
+        wb.hr.add_footer_vehicles()
+        wb.hr.add_footer_total()
         wb.save()
         page.snack_bar = ft.SnackBar(content=ft.Text("Dados salvos com sucesso na planilha!"))
         page.snack_bar.open = True
