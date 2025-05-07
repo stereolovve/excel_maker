@@ -1,4 +1,5 @@
 #src/planilha.py
+from tracemalloc import start
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Border, Side, Alignment, NamedStyle
 from datetime import datetime, timedelta
@@ -92,224 +93,137 @@ class planilhaContagem:
             self.header_style.border = Border(top=thin, left=thick, right=thick, bottom=thin)
             
         def create_movement_table(self, start_row, data, movement, movement_index):
-            """
-            Definir cabeçalho da tabela de contagem.
-            """
+            # Header
             ponto = data.get("Ponto", "")
             movimento_concatenado = f"{ponto}{movement}" if ponto and movement else movement
-            self.sheet2['B1'] = "Data:"
-            self.sheet2['C1'] = data.get("Data", "")
-            self.sheet2['B2'] = "Movimento:"
-            self.sheet2['C2'] = movimento_concatenado
-            
-            
-            for col in  ['B', 'C']:
-                for row in range(start_row, start_row + len(movement)):
+            self.sheet2[f'B{start_row}'] = "Data:"
+            self.sheet2[f'C{start_row}'] = data.get("Data", "")
+            self.sheet2[f'B{start_row + 1}'] = "Movimento:"
+            self.sheet2[f'C{start_row + 1}'] = movimento_concatenado
+            for col in ['B', 'C']:
+                for row in range(start_row, start_row + 2):
                     cell = self.sheet2[f'{col}{row}']
                     cell.style = self.header_style
-            
-            """
-            Definir coluna de veiculos
-            """
+
+            # Vehicle columns
+            header_row = start_row + 2
+            subcat_row = start_row + 3
             table_columns = [
-                'B3:C3',  # Hora
-                'D3:D4',  # Leves
-                'E3:G3',  # Carretinha
-                'H3:H4',  # VUC
-                'I3:K3',  # Caminhões
-                'L3:R3',  # Carretas
-                'S3:T3',  # Ônibus
-                'U3:U4',  # Motos
-                'V3:AC3',  # Pesados
-                'AD3:AD4'  # Veiculos Totais
+                f'B{header_row}:C{header_row}',  # Hora
+                f'D{header_row}:D{subcat_row}',  # Leves
+                f'E{header_row}:G{header_row}',  # Carretinha
+                f'H{header_row}:H{subcat_row}',  # VUC
+                f'I{header_row}:K{header_row}',  # Caminhões
+                f'L{header_row}:R{header_row}',  # Carretas
+                f'S{header_row}:T{header_row}',  # Ônibus
+                f'U{header_row}:U{subcat_row}',  # Motos
+                f'V{header_row}:AC{header_row}',  # Pesados
+                f'AD{header_row}:AD{subcat_row}'  # Veículos Totais
             ]
-            # Aplicar mesclagem nas áreas definidas
             for header_info in table_columns:
                 self.sheet2.merge_cells(header_info)
-            
-            # Dar nome para as colunas mescladas
+
             headers = [
-                ('B3', "Horas"),
-                ('D3', "Leves"),
-                ('E3', "Carretinha"),
-                ('H3', "VUC"),
-                ('I3', "Caminhões"),
-                ('L3', "Carreta"),
-                ('S3', "Ônibus"),
-                ('U3', "Motos"),
-                ('V3', "Pesados"),
-                ('AD3', "Veículos Totais"),
+                (f'B{header_row}', "Horas"),
+                (f'D{header_row}', "Leves"),
+                (f'E{header_row}', "Carretinha"),
+                (f'H{header_row}', "VUC"),
+                (f'I{header_row}', "Caminhões"),
+                (f'L{header_row}', "Carreta"),
+                (f'S{header_row}', "Ônibus"),
+                (f'U{header_row}', "Motos"),
+                (f'V{header_row}', "Pesados"),
+                (f'AD{header_row}', "Veículos Totais"),
             ]
+            for cell_pos, value in headers:
+                cell = self.sheet2[cell_pos]
+                cell.value = value
+                cell.font = Font(bold=True, size=11)
+                cell.fill = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+                cell.border = self.header_style.border
 
-            for header_info in headers:
-                cell = self.sheet2[header_info[0]]
-                cell.value = header_info[1]
-
-            # Estilo para cabeçalhos principais
-            header_style = Font(bold=True, size=11)
-            header_fill = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
-            self.header_border = Border(
-                left=Side(style='thin'),
-                right=Side(style='thin'),
-                top=Side(style='thin'),
-                bottom=Side(style='thin'),
-                diagonal=Side(style='thin'),
-
-            )
-            center_align = Alignment(horizontal='center', vertical='center')
-
-            # Aplicar cabeçalhos principais
-            for header_info in table_columns:
-                for row in self.sheet2[header_info]:
-                    for cell in row:
-                        cell.border = self.header_border
-                        cell.alignment = center_align
-
-            # Adicionar subcategorias na linha 5
+            # Subcategories
             subcategories = [
-                ('B4', "das"), ('C4', "as"),
-                ('E4', "1 Eixo"), ('F4', "2 Eixos"), ('G4', "3 Eixos"), 
-                ('I4', "2 Eixos"), ('J4', "3 Eixos"), ('K4', "4 Eixos"),
-                ('L4', "2 E"), ('M4', "3 E"), ('N4', "4 E"), ('O4', "5 E"), ('P4', "6 E"), ('Q4', "7 E"), ('R4', "8 E"),
-                ('S4', "2 E"), ('T4', "3 E ou +"),
-                ('V4', "% Cam"), ('w4', "Caminhões"), ('x4', "% Carr"), ('Y4', "Carretas"), ('Z4', "% Ônib"), ('AA4', "Ônibus"), ('AB4', "% Pes"), ('AC4', "Total")
+                (f'B{subcat_row}', "das"), (f'C{subcat_row}', "as"),
+                (f'E{subcat_row}', "1 Eixo"), (f'F{subcat_row}', "2 Eixos"), (f'G{subcat_row}', "3 Eixos"),
+                (f'I{subcat_row}', "2 Eixos"), (f'J{subcat_row}', "3 Eixos"), (f'K{subcat_row}', "4 Eixos"),
+                (f'L{subcat_row}', "2 E"), (f'M{subcat_row}', "3 E"), (f'N{subcat_row}', "4 E"),
+                (f'O{subcat_row}', "5 E"), (f'P{subcat_row}', "6 E"), (f'Q{subcat_row}', "7 E"),
+                (f'R{subcat_row}', "8 E"),
+                (f'S{subcat_row}', "2 E"), (f'T{subcat_row}', "3 E ou +"),
+                (f'V{subcat_row}', "% Cam"), (f'W{subcat_row}', "Caminhões"),
+                (f'X{subcat_row}', "% Carr"), (f'Y{subcat_row}', "Carretas"),
+                (f'Z{subcat_row}', "% Ônib"), (f'AA{subcat_row}', "Ônibus"),
+                (f'AB{subcat_row}', "% Pes"), (f'AC{subcat_row}', "Total")
             ]
-
-            # Estilo para subcategorias
-            subcat_style = Font(size=10)
-            subcat_border = Border(
-                left=Side(style='thin'),
-                right=Side(style='thin'),
-                top=Side(style='thin'),
-                bottom=Side(style='thin')
-            )
-            subcat_align = Alignment(horizontal='center', vertical='center')
-
-            # Aplicar subcategorias
             for cell_pos, value in subcategories:
                 cell = self.sheet2[cell_pos]
                 cell.value = value
-                cell.font = subcat_style
-                cell.border = subcat_border
-                cell.alignment = subcat_align
+                cell.font = Font(size=10)
+                cell.border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+                cell.alignment = Alignment(horizontal='center', vertical='center')
 
-            
-            """
-            Definir o laço de 15min das colunas das e as
-            """
-            # Criar uma formatação NamedStyle
-            time_style = NamedStyle(name="time")
+            # Time intervals (15-minute intervals)
+            time_style = NamedStyle(name=f"time_{movement_index}_relatorio")
             time_style.alignment = Alignment(horizontal='center', vertical='center')
-            thin = Side(border_style="thin")
-            thick = Side(border_style="thick")
-            time_style.border = Border(top=thin, left=thick, right=thick, bottom=thin)
-
-            # Criar laço para preencher a coluna "das" de 15 em 15 minutos até dar 23:59
+            time_style.border = Border(top=Side(style='thin'), left=Side(style='thick'), right=Side(style='thick'), bottom=Side(style='thin'))
             das_inicio = datetime.strptime("00:00", "%H:%M")
-            as_inicio = datetime.strptime("00:15","%H:%M")
+            as_inicio = datetime.strptime("00:15", "%H:%M")
             das_fim = datetime.strptime("23:45", "%H:%M")
-            as_fim = datetime.strptime("23:59", "%H:%M")
-            cell_das_inicio = self.sheet2['B5']
-            cell_as_inicio = self.sheet2['C5']
-
-            while das_inicio <= das_fim and as_fim:
-                cell_das_inicio.value = das_inicio.strftime("%H:%M")
-                cell_das_inicio.style = time_style
-                cell_as_inicio.value = as_inicio.strftime("%H:%M")
-                cell_as_inicio.style = time_style
-                cell_das_inicio = self.sheet2.cell(row=cell_das_inicio.row + 1, column=cell_das_inicio.column)
-                cell_as_inicio = self.sheet2.cell(row=cell_as_inicio.row + 1, column=cell_as_inicio.column)
+            row = start_row + 4
+            while das_inicio <= das_fim:
+                self.sheet2[f'B{row}'].value = das_inicio.strftime("%H:%M")
+                self.sheet2[f'B{row}'].style = time_style
+                self.sheet2[f'C{row}'].value = as_inicio.strftime("%H:%M")
+                self.sheet2[f'C{row}'].style = time_style
                 das_inicio += timedelta(minutes=15)
                 as_inicio += timedelta(minutes=15)
-        
-            # Criar uma formatação com NamedStyled
+                row += 1
 
-            """
-            Definir formulas de total de veículos e suas porcentagens.
-            """
-            start_row = 5
-            end_row = 100
-
-            # Loop para iterar entre start e end
-            for row in range(start_row, end_row + 1):
-                # Formulas de total 
-                formula_caminhoes = f"=SUM(I{row}:K{row})"
-                formula_carretas = f"=SUM(L{row}:R{row})"
-                formula_onibus = f"=SUM(S{row}:T{row})"
-                formula_total_pesados = f"=SUM(W{row},Y{row},AA{row})"
-                formula_total_vehicles = f"=SUM(D{row}:H{row},AC{row})"
-
-                # Aplicas as formulas em cada celula
-                self.sheet2[f'W{row}'].value = formula_caminhoes
-                self.sheet2[f'Y{row}'].value = formula_carretas
-                self.sheet2[f'AA{row}'].value = formula_onibus
-                self.sheet2[f'AC{row}'].value = formula_total_pesados
-                self.sheet2[f'AD{row}'].value = formula_total_vehicles
-
-                # Formula de percentual
-                formula_perc_caminhoes = f"=IFERROR(W{row}/AD{row}, 0)"
-                formula_perc_carretas = f"=IFERROR(Y{row}/AD{row}, 0)"
-                formula_perc_onibus = f"=IFERROR(AA{row}/AD{row}, 0)"
-                formula_perc_pesados = f"=IFERROR(AC{row}/AD{row}, 0)"
-
-                # Aplicar formulas de porcentagem
-                self.sheet2[f'V{row}'].value = formula_perc_caminhoes
+            # Total vehicles and percentages
+            table_start_row = start_row + 4
+            table_end_row = start_row + 99  # 96 intervals (24 hours * 4)
+            for row in range(table_start_row, table_end_row + 1):
+                self.sheet2[f'W{row}'].value = f"=SUM(I{row}:K{row})"
+                self.sheet2[f'Y{row}'].value = f"=SUM(L{row}:R{row})"
+                self.sheet2[f'AA{row}'].value = f"=SUM(S{row}:T{row})"
+                self.sheet2[f'AC{row}'].value = f"=SUM(W{row},Y{row},AA{row})"
+                if row >= table_start_row:  # Skip merged rows for AD
+                    self.sheet2[f'AD{row}'].value = f"=SUM(D{row}:H{row},AC{row})"
+                self.sheet2[f'V{row}'].value = f"=IFERROR(W{row}/AD{row}, 0)"
                 self.sheet2[f'V{row}'].number_format = '0.0%'
-                self.sheet2[f'X{row}'].value = formula_perc_carretas
+                self.sheet2[f'X{row}'].value = f"=IFERROR(Y{row}/AD{row}, 0)"
                 self.sheet2[f'X{row}'].number_format = '0.0%'
-                self.sheet2[f'Z{row}'].value = formula_perc_onibus
+                self.sheet2[f'Z{row}'].value = f"=IFERROR(AA{row}/AD{row}, 0)"
                 self.sheet2[f'Z{row}'].number_format = '0.0%'
-                self.sheet2[f'AB{row}'].value = formula_perc_pesados
+                self.sheet2[f'AB{row}'].value = f"=IFERROR(AC{row}/AD{row}, 0)"
                 self.sheet2[f'AB{row}'].number_format = '0.0%'
 
-            """
-            Definir a linha final da tabela, onde exibe o total do dia.
-            """
+            # Footer
+            footer_row = table_end_row + 1
             footer_style = NamedStyle(name="footer_style", font=Font(bold=True, size=11))
             footer_style.alignment = Alignment(horizontal='center', vertical='center')
-            thin = Side(border_style="thin")
-            thick = Side(border_style="thick")
-            footer_style.border = Border(top=thin, left=thick, right=thick, bottom=thin)
-
-            footer_row = 101
-
-            # Mesclar celula total
-            table_columns = [
-                f'B{footer_row}:C{footer_row}'
-            ]
-            # Total
-            self.sheet2['B101'] = "Total"
-
-            # Aplicar mesclagem nas áreas definidas
-            for footer_info in table_columns:
-                self.sheet2.merge_cells(footer_info)
-
-            # Aplicar fórmula de soma para as colunas D até U na linha do rodapé
-            for col in range(ord('D'), ord('U') + 1): # percorre do D  até U
+            footer_style.border = Border(top=Side(style='thin'), left=Side(style='thick'), right=Side(style='thick'), bottom=Side(style='thin'))
+            self.sheet2[f'B{footer_row}'] = "Total"
+            self.sheet2.merge_cells(f'B{footer_row}:C{footer_row}')
+            for col in range(ord('D'), ord('U') + 1):
                 col_letter = chr(col)
-                formula = f"=SUM({col_letter}4:{col_letter}100)"
-                self.sheet2[f"{col_letter}{footer_row}"].value = formula
-            
-            # Criar e aplicar as formulas de percentual
-            columns_perc = ['V', 'X', 'Z', 'AB']
-            for col_letter in columns_perc:
-                formula = f"=IFERROR(({col_letter}4:{col_letter}100), 0)"
-                self.sheet2[f"{col_letter}{footer_row}"].value = formula
-
-            # Criar e aplicar as formulas de total pesados
+                self.sheet2[f'{col_letter}{footer_row}'].value = f"=SUM({col_letter}{table_start_row}:{col_letter}{table_end_row})"
+                self.sheet2[f'{col_letter}{footer_row}'].style = footer_style
+            for col in ['V', 'X', 'Z', 'AB']:
+                self.sheet2[f'{col}{footer_row}'].value = f"=IFERROR(SUM({col}{table_start_row}:{col}{table_end_row}), 0)"
+                self.sheet2[f'{col}{footer_row}'].style = footer_style
+                self.sheet2[f'{col}{footer_row}'].number_format = '0.0%'
             self.sheet2[f'W{footer_row}'].value = f"=SUM(I{footer_row}:K{footer_row})"
-
             self.sheet2[f'Y{footer_row}'].value = f"=SUM(L{footer_row}:R{footer_row})"
-
             self.sheet2[f'AA{footer_row}'].value = f"=SUM(S{footer_row}:T{footer_row})"
-
-            self.sheet2[f'AC{footer_row}'].value = f"=SUM(W{footer_row},Y{footer_row},AA{footer_row})"
-
-            # Formula veiculos totais
+            self.sheet2[f'AC{footer_row}'].value = f"=SUM(W{footer_row},Y{row},AA{row})"
             self.sheet2[f'AD{footer_row}'].value = f"=SUM(D{footer_row}:H{footer_row},AC{footer_row})"
+            for col in ['W', 'Y', 'AA', 'AC', 'AD']:
+                self.sheet2[f'{col}{footer_row}'].style = footer_style
 
-            # Adicionando 2 linhas para espaçamento entre tabelas.
-            return footer_row + 2
+            return footer_row + 5  # Space for next table
 
         def add_data(self, data):
             """
@@ -324,221 +238,145 @@ class planilhaContagem:
         def __init__(self, wb):
             self.wb = wb
             self.sheet3 = self.wb.create_sheet(title="Hr")
-
-        def create_movement_table(self, start_row, data, movement, movement_index):
-            """
-            Definir cabeçalho da tabela de contagem.
-            """
-            ponto = data.get("Ponto", "")
-            movimento_concatenado = f"{ponto}{movement}" if ponto and movement else movement
-            
-            # Criar uma formatação NamedStyle
-            hr_header_style = NamedStyle(name="hr_header_style", font=Font(bold=True, size=12, color="FF0000"), alignment=Alignment(horizontal='center', vertical='center'))
-            hr_header_style.font = Font(bold=True, size=12, color="FF0000")
-            hr_header_style.alignment = Alignment(horizontal='center', vertical='center')
-
-            # Criar o cabeçalho, definir seu valor e aplicar o estilo
-            self.sheet3['B1'] = "Data:"
-            self.sheet3['C1'].value = data.get("Data","")
-            self.sheet3['C1'].style = hr_header_style
-
-            self.sheet3['B2'] = "Movimento:"
-            self.sheet3['C2'].value = movimento_concatenado
-            self.sheet3['C2'].style = hr_header_style
-            
-            """
-            Definir as colunas de veiculos
-            """
-            
-            # Criar uma formatação com NamedStyled
-            vehicle_col_style = NamedStyle(name="vehicle_columns")
-            vehicle_col_style.font = Font(bold=True, size=12)
-            vehicle_col_style.alignment = Alignment(horizontal='center', vertical='center')
-            thin = Side(border_style="thin")
-            thick = Side(border_style="thick")
-            vehicle_col_style.border = Border(top=thin, left=thick, right=thick, bottom=thin)
-
-            # Lista para mesclar celulas
-            table_columns = [
-                'B3:C3',  # Hora
-                'D3:D4',  # Leves
-                'E3:G3',  # Carretinha
-                'H3:H4',  # VUC
-                'I3:K3',  # Caminhões
-                'L3:R3',  # Carretas
-                'S3:T3',  # Ônibus
-                'U3:U4',  # Motos
-                'V3:AC3',  # Pesados
-                'AD3:AD4'  # Veiculos Totais
-            ]
-            # Aplicar mesclagem nas áreas definidas
-            for header_info in table_columns:
-                self.sheet3.merge_cells(header_info)
-            
-            # Dar nome para as colunas mescladas
-            headers = [
-                ('B3', "Horas"),
-                ('D3', "Leves"),
-                ('E3', "Carretinha"),
-                ('H3', "VUC"),
-                ('I3', "Caminhões"),
-                ('L3', "Carreta"),
-                ('S3', "Ônibus"),
-                ('U3', "Motos"),
-                ('V3', "Pesados"),
-                ('AD3', "Veículos Totais"),
-            ]
-
-            for header_info in headers:
-                cell = self.sheet3[header_info[0]]
-                cell.value = header_info[1]
-
-            # Estilo para cabeçalhos principais
-            center_align = Alignment(horizontal='center', vertical='center')
-
-            # Aplicar cabeçalhos principais
-            for header_info in table_columns:
-                for row in self.sheet3[header_info]:
-                    for cell in row:
-                        cell.alignment = center_align
-
-            # Adicionar subcategorias na linha 5
-            subcategories = [
-                ('B4', "das"), ('C4', "as"),
-                ('E4', "1 Eixo"), ('F4', "2 Eixos"), ('G4', "3 Eixos"), 
-                ('I4', "2 Eixos"), ('J4', "3 Eixos"), ('K4', "4 Eixos"),
-                ('L4', "2 E"), ('M4', "3 E"), ('N4', "4 E"), ('O4', "5 E"), ('P4', "6 E"), ('Q4', "7 E"), ('R4', "8 E"),
-                ('S4', "2 E"), ('T4', "3 E ou +"),
-                ('V4', "% Cam"), ('w4', "Caminhões"), ('x4', "% Carr"), ('Y4', "Carretas"), ('Z4', "% Ônib"), ('AA4', "Ônibus"), ('AB4', "% Pes"), ('AC4', "Total")
-            ]
-
-            # Estilo para subcategorias
-            subcat_style = Font(size=10)
-            subcat_border = Border(
+            self.header_border = Border(
                 left=Side(style='thin'),
                 right=Side(style='thin'),
                 top=Side(style='thin'),
                 bottom=Side(style='thin')
             )
-            subcat_align = Alignment(horizontal='center', vertical='center')
 
-            # Aplicar subcategorias
+        def create_movement_table(self, start_row, data, movement, movement_index):
+            # Header
+            ponto = data.get("Ponto", "")
+            movimento_concatenado = f"{ponto}{movement}" if ponto and movement else movement
+            hr_header_style = NamedStyle(name=f"hr_header_{movement_index}", font=Font(bold=True, size=12, color="FF0000"))
+            hr_header_style.alignment = Alignment(horizontal='center', vertical='center')
+            self.sheet3[f'B{start_row}'] = "Data:"
+            self.sheet3[f'C{start_row}'].value = data.get("Data", "")
+            self.sheet3[f'C{start_row}'].style = hr_header_style
+            self.sheet3[f'B{start_row + 1}'] = "Movimento:"
+            self.sheet3[f'C{start_row + 1}'].value = movimento_concatenado
+            self.sheet3[f'C{start_row + 1}'].style = hr_header_style
+
+            # Vehicle columns
+            header_row = start_row + 2
+            subcat_row = start_row + 3
+            table_columns = [
+                f'B{header_row}:C{header_row}',  # Hora
+                f'D{header_row}:D{subcat_row}',  # Leves
+                f'E{header_row}:G{header_row}',  # Carretinha
+                f'H{header_row}:H{subcat_row}',  # VUC
+                f'I{header_row}:K{header_row}',  # Caminhões
+                f'L{header_row}:R{header_row}',  # Carretas
+                f'S{header_row}:T{header_row}',  # Ônibus
+                f'U{header_row}:U{subcat_row}',  # Motos
+                f'V{header_row}:AC{header_row}',  # Pesados
+                f'AD{header_row}:AD{subcat_row}'  # Veículos Totais
+            ]
+            for header_info in table_columns:
+                self.sheet3.merge_cells(header_info)
+
+            headers = [
+                (f'B{header_row}', "Horas"),
+                (f'D{header_row}', "Leves"),
+                (f'E{header_row}', "Carretinha"),
+                (f'H{header_row}', "VUC"),
+                (f'I{header_row}', "Caminhões"),
+                (f'L{header_row}', "Carreta"),
+                (f'S{header_row}', "Ônibus"),
+                (f'U{header_row}', "Motos"),
+                (f'V{header_row}', "Pesados"),
+                (f'AD{header_row}', "Veículos Totais"),
+            ]
+            for cell_pos, value in headers:
+                cell = self.sheet3[cell_pos]
+                cell.value = value
+                cell.font = Font(bold=True, size=11)
+                cell.fill = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+                cell.border = self.header_border
+
+            # Subcategories
+            subcategories = [
+                (f'B{subcat_row}', "das"), (f'C{subcat_row}', "as"),
+                (f'E{subcat_row}', "1 Eixo"), (f'F{subcat_row}', "2 Eixos"), (f'G{subcat_row}', "3 Eixos"),
+                (f'I{subcat_row}', "2 Eixos"), (f'J{subcat_row}', "3 Eixos"), (f'K{subcat_row}', "4 Eixos"),
+                (f'L{subcat_row}', "2 E"), (f'M{subcat_row}', "3 E"), (f'N{subcat_row}', "4 E"),
+                (f'O{subcat_row}', "5 E"), (f'P{subcat_row}', "6 E"), (f'Q{subcat_row}', "7 E"),
+                (f'R{subcat_row}', "8 E"),
+                (f'S{subcat_row}', "2 E"), (f'T{subcat_row}', "3 E ou +"),
+                (f'V{subcat_row}', "% Cam"), (f'W{subcat_row}', "Caminhões"),
+                (f'X{subcat_row}', "% Carr"), (f'Y{subcat_row}', "Carretas"),
+                (f'Z{subcat_row}', "% Ônib"), (f'AA{subcat_row}', "Ônibus"),
+                (f'AB{subcat_row}', "% Pes"), (f'AC{subcat_row}', "Total")
+            ]
             for cell_pos, value in subcategories:
                 cell = self.sheet3[cell_pos]
                 cell.value = value
-                cell.font = subcat_style
-                cell.border = subcat_border
-                cell.alignment = subcat_align
+                cell.font = Font(size=10)
+                cell.border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+                cell.alignment = Alignment(horizontal='center', vertical='center')
 
-            """
-            Definir o intervalo de 1 hora
-            """
-
-            # Criar uma formatação NamedStyle
-            time_style = NamedStyle(name="time")
+            # Time intervals (hourly)
+            time_style = NamedStyle(name=f"time_{movement_index}_hr")
             time_style.alignment = Alignment(horizontal='center', vertical='center')
-            thin = Side(border_style="thin")
-            thick = Side(border_style="thick")
-            time_style.border = Border(top=thin, left=thick, right=thick, bottom=thin)
-            # Criar laço para preencher a coluna "das" de 15 em 15 minutos até dar 23:59
+            time_style.border = Border(top=Side(style='thin'), left=Side(style='thick'), right=Side(style='thick'), bottom=Side(style='thin'))
             das_inicio = datetime.strptime("00:00", "%H:%M")
-            as_inicio = datetime.strptime("01:00","%H:%M")
+            as_inicio = datetime.strptime("01:00", "%H:%M")
             das_fim = datetime.strptime("23:00", "%H:%M")
-            as_fim = datetime.strptime("23:59", "%H:%M")
-            cell_das_inicio = self.sheet3['B5']
-            cell_as_inicio = self.sheet3['C5']
-
-            while das_inicio <= das_fim and as_fim:
-                cell_das_inicio.value = das_inicio.strftime("%H:%M")
-                cell_das_inicio.style = time_style
-                cell_as_inicio.value = as_inicio.strftime("%H:%M")
-                cell_as_inicio.style = time_style
-                cell_das_inicio = self.sheet3.cell(row=cell_das_inicio.row + 1, column=cell_das_inicio.column)
-                cell_as_inicio = self.sheet3.cell(row=cell_as_inicio.row + 1, column=cell_as_inicio.column)
+            row = start_row + 4
+            while das_inicio <= das_fim:
+                self.sheet3[f'B{row}'].value = das_inicio.strftime("%H:%M")
+                self.sheet3[f'B{row}'].style = time_style
+                self.sheet3[f'C{row}'].value = as_inicio.strftime("%H:%M")
+                self.sheet3[f'C{row}'].style = time_style
                 das_inicio += timedelta(hours=1)
                 as_inicio += timedelta(hours=1)
-        
-            """
-            Total veiculos e porcentagem
-            """
-            # Criar uma formatação com NamedStyled
-            total_vehicles_style = NamedStyle(name="total_vehicles")
-            total_vehicles_style.font = Font(bold=True, size=12)
-            total_vehicles_style.alignment = Alignment(horizontal='center', vertical='center')
-            thin = Side(border_style="thin")
-            thick = Side(border_style="thick")
-            total_vehicles_style.border = Border(top=thin, left=thick, right=thick, bottom=thin)
+                row += 1
 
-            start_row = 5
-            end_row = 29
-
-            # Loop para iterar entre star e end
-            for row in range(start_row, end_row + 1):
-                # Formulas de total 
-                formula_caminhoes = f"=SUM(I{row}:K{row})"
-                formula_carretas = f"=SUM(L{row}:R{row})"
-                formula_onibus = f"=SUM(S{row}:T{row})"
-                formula_total_pesados = f"=SUM(W{row},Y{row},AA{row})"
-                formula_total_vehicles = f"=SUM(D{row}:H{row},AC{row})"
-
-                # Aplicas as formulas em cada celula
-                self.sheet3[f'W{row}'].value = formula_caminhoes
-                self.sheet3[f'Y{row}'].value = formula_carretas
-                self.sheet3[f'AA{row}'].value = formula_onibus
-                self.sheet3[f'AC{row}'].value = formula_total_pesados
-                self.sheet3[f'AD{row}'].value = formula_total_vehicles
-
-                # Formula de percentual
-                formula_perc_caminhoes = f"=IFERROR(W{row}/AD{row}, 0)"
-                formula_perc_carretas = f"=IFERROR(Y{row}/AD{row}, 0)"
-                formula_perc_onibus = f"=IFERROR(AA{row}/AD{row}, 0)"
-                formula_perc_pesados = f"=IFERROR(AC{row}/AD{row}, 0)"
-
-                # Aplicar formulas de porcentagem
-                self.sheet3[f'V{row}'].value = formula_perc_caminhoes
+            # Total vehicles and percentages
+            table_start_row = start_row + 4
+            table_end_row = start_row + 27  # 24 hourly intervals
+            for row in range(table_start_row, table_end_row + 1):
+                self.sheet3[f'W{row}'].value = f"=SUM(I{row}:K{row})"
+                self.sheet3[f'Y{row}'].value = f"=SUM(L{row}:R{row})"
+                self.sheet3[f'AA{row}'].value = f"=SUM(S{row}:T{row})"
+                self.sheet3[f'AC{row}'].value = f"=SUM(W{row},Y{row},AA{row})"
+                if row >= table_start_row:  # Skip merged rows for AD
+                    self.sheet3[f'AD{row}'].value = f"=SUM(D{row}:H{row},AC{row})"
+                self.sheet3[f'V{row}'].value = f"=IFERROR(W{row}/AD{row}, 0)"
                 self.sheet3[f'V{row}'].number_format = '0.0%'
-                self.sheet3[f'X{row}'].value = formula_perc_carretas
+                self.sheet3[f'X{row}'].value = f"=IFERROR(Y{row}/AD{row}, 0)"
                 self.sheet3[f'X{row}'].number_format = '0.0%'
-                self.sheet3[f'Z{row}'].value = formula_perc_onibus
+                self.sheet3[f'Z{row}'].value = f"=IFERROR(AA{row}/AD{row}, 0)"
                 self.sheet3[f'Z{row}'].number_format = '0.0%'
-                self.sheet3[f'AB{row}'].value = formula_perc_pesados
+                self.sheet3[f'AB{row}'].value = f"=IFERROR(AC{row}/AD{row}, 0)"
                 self.sheet3[f'AB{row}'].number_format = '0.0%'
 
-            """
-            Rodapé
-            """
-            footer_row = 29
-
-            # Mesclar celula total
-            table_columns = [
-                f'B{footer_row}:C{footer_row}'
-            ]
-
-            # Aplicar mesclagem nas áreas definidas
-            for footer_info in table_columns:
-                self.sheet3.merge_cells(footer_info)
-
-            # Aplicar fórmula de soma para as colunas D até U na linha do rodapé
-            for col in range(ord('D'), ord('U') + 1): # percorre do D  até U
+            # Footer
+            footer_row = table_end_row + 1
+            footer_style = NamedStyle(name="footer_style", font=Font(bold=True, size=11))
+            footer_style.alignment = Alignment(horizontal='center', vertical='center')
+            footer_style.border = Border(top=Side(style='thin'), left=Side(style='thick'), right=Side(style='thick'), bottom=Side(style='thin'))
+            self.sheet3[f'B{footer_row}'] = "Total"
+            self.sheet3.merge_cells(f'B{footer_row}:C{footer_row}')
+            for col in range(ord('D'), ord('U') + 1):
                 col_letter = chr(col)
-                formula = f"=SUM({col_letter}5:{col_letter}28)"
-                self.sheet3[f"{col_letter}{footer_row}"].value = formula
-
-            # Criar e aplicar as formulas de percentual
-            columns_perc = ['V', 'X', 'Z', 'AB']
-
-            for col_letter in columns_perc:
-                formula = f"=IFERROR(({col_letter}5:{col_letter}28), 0)"
-                self.sheet3[f"{col_letter}{footer_row}"].value = formula
-
-            # Criar e aplicar as formulas de total pesados
+                self.sheet3[f'{col_letter}{footer_row}'].value = f"=SUM({col_letter}{table_start_row}:{col_letter}{table_end_row})"
+                self.sheet3[f'{col_letter}{footer_row}'].style = footer_style
+            for col in ['V', 'X', 'Z', 'AB']:
+                self.sheet3[f'{col}{footer_row}'].value = f"=IFERROR(SUM({col}{table_start_row}:{col}{table_end_row}), 0)"
+                self.sheet3[f'{col}{footer_row}'].style = footer_style
+                self.sheet3[f'{col}{footer_row}'].number_format = '0.0%'
             self.sheet3[f'W{footer_row}'].value = f"=SUM(I{footer_row}:K{footer_row})"
             self.sheet3[f'Y{footer_row}'].value = f"=SUM(L{footer_row}:R{footer_row})"
             self.sheet3[f'AA{footer_row}'].value = f"=SUM(S{footer_row}:T{footer_row})"
             self.sheet3[f'AC{footer_row}'].value = f"=SUM(W{footer_row},Y{footer_row},AA{footer_row})"
-
-            # Formula veiculos totais
             self.sheet3[f'AD{footer_row}'].value = f"=SUM(D{footer_row}:H{footer_row},AC{footer_row})"
+            for col in ['W', 'Y', 'AA', 'AC', 'AD']:
+                self.sheet3[f'{col}{footer_row}'].style = footer_style
+
+            return footer_row + 5  # Space Presse Enter twice to execute the code block for next table
 
         def add_data(self, data):
             movimentos = data.get("Movimentos", [])
@@ -547,33 +385,29 @@ class planilhaContagem:
                 start_row = self.create_movement_table(start_row, data, movimento, i)
 
     def add_data(self, data):
-        """
-        Encapsular todas abas para lidar com criação das abas
-        """
         self.data = data
         self.entrada.add_data(data)
         self.relatorio.add_data(data)
         self.hr.add_data(data)
 
-        # Tratar a duplicação do relatorio e hr com base na duração de dias
         duration_days_str = data.get("Duração em dias", 1)
-        # Transformar str em int
         try:
-            duration_days = int(duration_days_str)  # Convert to integer
+            duration_days = int(duration_days_str)
         except (ValueError, TypeError):
-            duration_days = 1  # Fallback to 1 if conversion fails
+            duration_days = 1
             print(f"Warning: Invalid 'Duração em dias' value '{duration_days_str}', defaulting to 1.")
-        
+
         if duration_days > 1:
-            initial_date = datetime.strptime(data.get("Data", ""), "%d-%m-%Y")
+            try:
+                initial_date = datetime.strptime(data.get("Data", ""), "%d-%m-%Y")
+            except ValueError:
+                initial_date = datetime.now()
+                print(f"Warning: Invalid date format for '{data.get('Data', '')}', using current date.")
             for day in range(1, duration_days):
-                # Criar as novas abas
                 relatorio_copy = self.abaRelatorio(self.wb)
                 relatorio_copy.sheet2.title = f"Relatório ({day})"
                 hr_copy = self.abaHr(self.wb)
                 hr_copy.sheet3.title = f"Hr ({day})"
-
-                # Atualizar as datas novas
                 copy_data = data.copy()
                 new_date = initial_date + timedelta(days=day)
                 copy_data["Data"] = new_date.strftime("%d-%m-%Y")
@@ -581,7 +415,6 @@ class planilhaContagem:
                 hr_copy.add_data(copy_data)
 
     def save(self):
-        # Ajustar largura das colunas automaticamente
         for sheet in self.wb.worksheets:
             for col in sheet.columns:
                 max_length = 0
@@ -589,10 +422,7 @@ class planilhaContagem:
                 for cell in col:
                     if cell.value:
                         max_length = max(max_length, len(str(cell.value)))
-                adjusted_width = min((max_length + 2),100)
+                adjusted_width = min((max_length + 2), 100)
                 sheet.column_dimensions[column].width = adjusted_width
-
-
-        # Salvar na pasta output/
         self.wb.save(f"output/{self.filename}")
         print(f"Planilha salva como {self.filename}")
