@@ -223,7 +223,7 @@ class planilhaContagem:
             for col in ['W', 'Y', 'AA', 'AC', 'AD']:
                 self.sheet2[f'{col}{footer_row}'].style = footer_style
 
-            return footer_row + 5  # Space for next table
+            return footer_row + 3  # Space for next table
 
         def add_data(self, data):
             """

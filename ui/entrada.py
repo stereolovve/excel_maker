@@ -14,33 +14,30 @@ class DataEntryForm(ft.Column):
         self.page = page
         
         
-    
-
         # Create fixed input fields
         self.cliente = ft.Dropdown(label="Cliente", width=400, options=[], on_change=self.on_cliente_change)
         self.codigo = ft.Dropdown(label="Código", width=400, options=[], on_change=self.on_codigo_change)
         self.ponto = ft.Dropdown(label="Ponto", width=400, options=[])
         self.data_inicio = ft.TextField(
             label="Data (DD-MM-YYYY)",
+            keyboard_type=ft.KeyboardType.NUMBER,
             value=datetime.now().strftime("%d-%m-%Y")
+
         )
-        self.localizacao = ft.TextField(label="Localização", width=400)
+        self.localizacao = ft.TextField(label="Localização", width=400, hint_text="Opcional")
         self.num_movimento = ft.TextField(
             label="Numero Movimentos",
-            value="0",
             keyboard_type=ft.KeyboardType.NUMBER,
             width=400,
             on_change=self.dynamic_movement_field
         )
         self.duracao_dias = ft.TextField(
             label="Duração em dias",
-            value="0",
             keyboard_type=ft.KeyboardType.NUMBER,
             width=400
         )
         self.duracao_horas = ft.TextField(
             label="Duração em horas",
-            value="0",
             keyboard_type=ft.KeyboardType.NUMBER,
             width=400
         )
@@ -66,6 +63,18 @@ class DataEntryForm(ft.Column):
             self.movement_container,
             self.save_button
         ]   
+
+        self._required = {
+            self.cliente: "Selecione um cliente",
+            self.codigo: "Selecione um código",
+            self.ponto: "Selecione um ponto",
+            self.data_inicio: "Selecione uma data de início",
+            self.num_movimento: "Informe quantos movimentos esse ponto tem!",
+            self.duracao_dias: "Informe quantos dias de contagem!",
+        }
+        for field in self._required:
+            field.on_blur = self._validate_field
+
         self.load_clientes()
         # Buscar os clientes
     def load_clientes(self):
@@ -132,8 +141,25 @@ class DataEntryForm(ft.Column):
             self.movement_fields.append(movement_input)
             self.movement_container.controls.append(movement_input)
         self.update()
+    
+
+    def _validate_field(self, e):
+        field = e.control
+        msg = self._required.get(field, "")
+        if not field.value or str(field.value).strip() == "":
+            field.error_text = msg
+        else:
+            field.error_text = None
         
+        all_ok = all(
+            f.value and str(f.value).strip() != "" for f in self._required
+        )
+        self.save_button.disabled = not all_ok
+        self.page.update()
+
+    
         
+    
     def save_data(self, e):
         cliente_id = self.cliente.value
         codigo_id = self.codigo.value
