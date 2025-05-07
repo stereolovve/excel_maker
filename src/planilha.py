@@ -9,7 +9,7 @@ class planilhaContagem:
         self.filename = f"{codigo}_{ponto}.xlsx"
         self.wb = Workbook()
         self.entrada = self.abaEntrada(self.wb)
-        self.resumo = self.abaRelatorio(self.wb)
+        self.relatorio = self.abaRelatorio(self.wb)
         self.hr = self.abaHr(self.wb)
 
     # Create first sheet
@@ -81,36 +81,37 @@ class planilhaContagem:
             self.sheet2 = self.wb.create_sheet(title="Relatório")
 
             # Definir estilos para a aba de resumo
-            self.header_font = Font(bold=True, size=12, color="FF0000")
-            self.header_fill = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")
-            self.border = Border(
-                left=Side(style='medium'),
-                right=Side(style='medium'),
-                top=Side(style='medium'),
-                bottom=Side(style='medium')
-            )
-
-        def add_header(self):
+            """
+            Criar NamedStyles para melhor organização
+            """
+            # Criar uma formatação NamedStyle
+            self.header_style = NamedStyle(name="header_style")
+            self.header_style.alignment = Alignment(horizontal='left', vertical='center')
+            thin = Side(border_style="thin")
+            thick = Side(border_style="thick")
+            self.header_style.border = Border(top=thin, left=thick, right=thick, bottom=thin)
+            
+        def create_movement_table(self, start_row, data, movement, movement_index):
+            """
+            Definir cabeçalho da tabela de contagem.
+            """
+            ponto = data.get("Ponto", "")
+            movimento_concatenado = f"{ponto}{movement}" if ponto and movement else movement
             self.sheet2['B1'] = "Data:"
+            self.sheet2['C1'] = data.get("Data", "")
             self.sheet2['B2'] = "Movimento:"
-
-        def add_header_value(self, data=None):
-            if data:
-                mov_nomes = data.get("Movimentos", [])[0] if data.get("Movimentos", []) else ""
-                ponto = data.get("Ponto", "")
-                movimento_concatenado = f"{ponto}{mov_nomes}" if ponto and mov_nomes else mov_nomes
-                header_values = [
-                    ('C1', data.get("Data", "")),
-                    ('C2', movimento_concatenado)
-                ]
-                for header_pos, value in header_values:
-                    header_value = self.sheet2[header_pos]
-                    header_value.value = value
-                    header_value.font = self.header_font
-        
-        def add_vehicle_columns(self):
-            # Lista para mesclar celulas
-            merged_areas = [
+            self.sheet2['C2'] = movimento_concatenado
+            
+            
+            for col in  ['B', 'C']:
+                for row in range(start_row, start_row + len(movement)):
+                    cell = self.sheet2[f'{col}{row}']
+                    cell.style = self.header_style
+            
+            """
+            Definir coluna de veiculos
+            """
+            table_columns = [
                 'B3:C3',  # Hora
                 'D3:D4',  # Leves
                 'E3:G3',  # Carretinha
@@ -123,7 +124,7 @@ class planilhaContagem:
                 'AD3:AD4'  # Veiculos Totais
             ]
             # Aplicar mesclagem nas áreas definidas
-            for header_info in merged_areas:
+            for header_info in table_columns:
                 self.sheet2.merge_cells(header_info)
             
             # Dar nome para as colunas mescladas
@@ -147,7 +148,7 @@ class planilhaContagem:
             # Estilo para cabeçalhos principais
             header_style = Font(bold=True, size=11)
             header_fill = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
-            header_border = Border(
+            self.header_border = Border(
                 left=Side(style='thin'),
                 right=Side(style='thin'),
                 top=Side(style='thin'),
@@ -158,10 +159,10 @@ class planilhaContagem:
             center_align = Alignment(horizontal='center', vertical='center')
 
             # Aplicar cabeçalhos principais
-            for header_info in merged_areas:
+            for header_info in table_columns:
                 for row in self.sheet2[header_info]:
                     for cell in row:
-                        cell.border = self.border
+                        cell.border = self.header_border
                         cell.alignment = center_align
 
             # Adicionar subcategorias na linha 5
@@ -192,13 +193,17 @@ class planilhaContagem:
                 cell.border = subcat_border
                 cell.alignment = subcat_align
 
-        def add_time_intervals(self):
+            
+            """
+            Definir o laço de 15min das colunas das e as
+            """
             # Criar uma formatação NamedStyle
             time_style = NamedStyle(name="time")
             time_style.alignment = Alignment(horizontal='center', vertical='center')
             thin = Side(border_style="thin")
             thick = Side(border_style="thick")
             time_style.border = Border(top=thin, left=thick, right=thick, bottom=thin)
+
             # Criar laço para preencher a coluna "das" de 15 em 15 minutos até dar 23:59
             das_inicio = datetime.strptime("00:00", "%H:%M")
             as_inicio = datetime.strptime("00:15","%H:%M")
@@ -217,14 +222,15 @@ class planilhaContagem:
                 das_inicio += timedelta(minutes=15)
                 as_inicio += timedelta(minutes=15)
         
-        def add_total_vehicles(self):
             # Criar uma formatação com NamedStyled
 
-
+            """
+            Definir formulas de total de veículos e suas porcentagens.
+            """
             start_row = 5
             end_row = 100
 
-            # Loop para iterar entre star e end
+            # Loop para iterar entre start e end
             for row in range(start_row, end_row + 1):
                 # Formulas de total 
                 formula_caminhoes = f"=SUM(I{row}:K{row})"
@@ -256,80 +262,94 @@ class planilhaContagem:
                 self.sheet2[f'AB{row}'].value = formula_perc_pesados
                 self.sheet2[f'AB{row}'].number_format = '0.0%'
 
-        def add_footer_vehicles(self):
-            # Linha do rodapé
+            """
+            Definir a linha final da tabela, onde exibe o total do dia.
+            """
+            footer_style = NamedStyle(name="footer_style", font=Font(bold=True, size=11))
+            footer_style.alignment = Alignment(horizontal='center', vertical='center')
+            thin = Side(border_style="thin")
+            thick = Side(border_style="thick")
+            footer_style.border = Border(top=thin, left=thick, right=thick, bottom=thin)
+
             footer_row = 101
 
             # Mesclar celula total
-            merged_areas = [
+            table_columns = [
                 f'B{footer_row}:C{footer_row}'
             ]
+            # Total
+            self.sheet2['B101'] = "Total"
 
             # Aplicar mesclagem nas áreas definidas
-            for footer_info in merged_areas:
+            for footer_info in table_columns:
                 self.sheet2.merge_cells(footer_info)
-                for row in self.sheet2[footer_info]:
-                    for cell in row:
-                        cell.border = self.border
 
             # Aplicar fórmula de soma para as colunas D até U na linha do rodapé
             for col in range(ord('D'), ord('U') + 1): # percorre do D  até U
                 col_letter = chr(col)
                 formula = f"=SUM({col_letter}4:{col_letter}100)"
                 self.sheet2[f"{col_letter}{footer_row}"].value = formula
-                self.sheet2[f"{col_letter}{footer_row}"].border = self.border
-
-        def add_footer_total(self):
-            footer_row = 101
-
             
-
             # Criar e aplicar as formulas de percentual
             columns_perc = ['V', 'X', 'Z', 'AB']
             for col_letter in columns_perc:
                 formula = f"=IFERROR(({col_letter}4:{col_letter}100), 0)"
                 self.sheet2[f"{col_letter}{footer_row}"].value = formula
-                self.sheet2[f"{col_letter}{footer_row}"].border = self.border
 
             # Criar e aplicar as formulas de total pesados
             self.sheet2[f'W{footer_row}'].value = f"=SUM(I{footer_row}:K{footer_row})"
-            self.sheet2[f'W{footer_row}'].border = self.border
 
             self.sheet2[f'Y{footer_row}'].value = f"=SUM(L{footer_row}:R{footer_row})"
-            self.sheet2[f'Y{footer_row}'].border = self.border
 
             self.sheet2[f'AA{footer_row}'].value = f"=SUM(S{footer_row}:T{footer_row})"
-            self.sheet2[f'AA{footer_row}'].border = self.border
 
             self.sheet2[f'AC{footer_row}'].value = f"=SUM(W{footer_row},Y{footer_row},AA{footer_row})"
-            self.sheet2[f'AC{footer_row}'].border = self.border
 
             # Formula veiculos totais
             self.sheet2[f'AD{footer_row}'].value = f"=SUM(D{footer_row}:H{footer_row},AC{footer_row})"
-            self.sheet2[f'AD{footer_row}'].border = self.border
+
+            # Adicionando 2 linhas para espaçamento entre tabelas.
+            return footer_row + 2
+
+        def add_data(self, data):
+            """
+            Função para encapsular tudo e criar tabelas de acordo com os movimentos
+            """
+            movimentos = data.get("Movimentos", [])
+            start_row = 1
+            for i, movimento in enumerate(movimentos):
+                start_row = self.create_movement_table(start_row, data, movimento, i)
 
     class abaHr:
         def __init__(self, wb):
             self.wb = wb
             self.sheet3 = self.wb.create_sheet(title="Hr")
 
-        def add_header(self, data=None):
+        def create_movement_table(self, start_row, data, movement, movement_index):
+            """
+            Definir cabeçalho da tabela de contagem.
+            """
+            ponto = data.get("Ponto", "")
+            movimento_concatenado = f"{ponto}{movement}" if ponto and movement else movement
+            
             # Criar uma formatação NamedStyle
-            header_style = NamedStyle(name="header_style")
-            header_style.font = Font(bold=True, size=12, color="FF0000")
-            header_style.alignment = Alignment(horizontal='center', vertical='center')
+            hr_header_style = NamedStyle(name="hr_header_style", font=Font(bold=True, size=12, color="FF0000"), alignment=Alignment(horizontal='center', vertical='center'))
+            hr_header_style.font = Font(bold=True, size=12, color="FF0000")
+            hr_header_style.alignment = Alignment(horizontal='center', vertical='center')
 
-            # Criar cabeçalho
+            # Criar o cabeçalho, definir seu valor e aplicar o estilo
             self.sheet3['B1'] = "Data:"
-            self.sheet3['C1'].value = "=Relatório!C1"
-            # Formatar com NamedStyle
-            self.sheet3['C1'].style = header_style
+            self.sheet3['C1'].value = data.get("Data","")
+            self.sheet3['C1'].style = hr_header_style
 
             self.sheet3['B2'] = "Movimento:"
-            self.sheet3['C2'].value = '=Relatório!C2'
-            self.sheet3['C2'].style = header_style
-
-        def add_vehicle_columns(self):
+            self.sheet3['C2'].value = movimento_concatenado
+            self.sheet3['C2'].style = hr_header_style
+            
+            """
+            Definir as colunas de veiculos
+            """
+            
             # Criar uma formatação com NamedStyled
             vehicle_col_style = NamedStyle(name="vehicle_columns")
             vehicle_col_style.font = Font(bold=True, size=12)
@@ -339,7 +359,7 @@ class planilhaContagem:
             vehicle_col_style.border = Border(top=thin, left=thick, right=thick, bottom=thin)
 
             # Lista para mesclar celulas
-            merged_areas = [
+            table_columns = [
                 'B3:C3',  # Hora
                 'D3:D4',  # Leves
                 'E3:G3',  # Carretinha
@@ -352,7 +372,7 @@ class planilhaContagem:
                 'AD3:AD4'  # Veiculos Totais
             ]
             # Aplicar mesclagem nas áreas definidas
-            for header_info in merged_areas:
+            for header_info in table_columns:
                 self.sheet3.merge_cells(header_info)
             
             # Dar nome para as colunas mescladas
@@ -377,7 +397,7 @@ class planilhaContagem:
             center_align = Alignment(horizontal='center', vertical='center')
 
             # Aplicar cabeçalhos principais
-            for header_info in merged_areas:
+            for header_info in table_columns:
                 for row in self.sheet3[header_info]:
                     for cell in row:
                         cell.alignment = center_align
@@ -410,7 +430,10 @@ class planilhaContagem:
                 cell.border = subcat_border
                 cell.alignment = subcat_align
 
-        def add_time_intervals(self):
+            """
+            Definir o intervalo de 1 hora
+            """
+
             # Criar uma formatação NamedStyle
             time_style = NamedStyle(name="time")
             time_style.alignment = Alignment(horizontal='center', vertical='center')
@@ -435,7 +458,9 @@ class planilhaContagem:
                 das_inicio += timedelta(hours=1)
                 as_inicio += timedelta(hours=1)
         
-        def add_total_vehicles(self):
+            """
+            Total veiculos e porcentagem
+            """
             # Criar uma formatação com NamedStyled
             total_vehicles_style = NamedStyle(name="total_vehicles")
             total_vehicles_style.font = Font(bold=True, size=12)
@@ -479,19 +504,19 @@ class planilhaContagem:
                 self.sheet3[f'AB{row}'].value = formula_perc_pesados
                 self.sheet3[f'AB{row}'].number_format = '0.0%'
 
-        def add_footer_vehicles(self):
-            # Linha do rodapé
+            """
+            Rodapé
+            """
             footer_row = 29
 
             # Mesclar celula total
-            merged_areas = [
+            table_columns = [
                 f'B{footer_row}:C{footer_row}'
             ]
 
             # Aplicar mesclagem nas áreas definidas
-            for footer_info in merged_areas:
+            for footer_info in table_columns:
                 self.sheet3.merge_cells(footer_info)
-
 
             # Aplicar fórmula de soma para as colunas D até U na linha do rodapé
             for col in range(ord('D'), ord('U') + 1): # percorre do D  até U
@@ -499,37 +524,70 @@ class planilhaContagem:
                 formula = f"=SUM({col_letter}5:{col_letter}28)"
                 self.sheet3[f"{col_letter}{footer_row}"].value = formula
 
-        def add_footer_total(self):
-            footer_row = 29
             # Criar e aplicar as formulas de percentual
             columns_perc = ['V', 'X', 'Z', 'AB']
+
             for col_letter in columns_perc:
                 formula = f"=IFERROR(({col_letter}5:{col_letter}28), 0)"
                 self.sheet3[f"{col_letter}{footer_row}"].value = formula
 
             # Criar e aplicar as formulas de total pesados
             self.sheet3[f'W{footer_row}'].value = f"=SUM(I{footer_row}:K{footer_row})"
-
             self.sheet3[f'Y{footer_row}'].value = f"=SUM(L{footer_row}:R{footer_row})"
-
             self.sheet3[f'AA{footer_row}'].value = f"=SUM(S{footer_row}:T{footer_row})"
-
             self.sheet3[f'AC{footer_row}'].value = f"=SUM(W{footer_row},Y{footer_row},AA{footer_row})"
 
             # Formula veiculos totais
             self.sheet3[f'AD{footer_row}'].value = f"=SUM(D{footer_row}:H{footer_row},AC{footer_row})"
 
+        def add_data(self, data):
+            movimentos = data.get("Movimentos", [])
+            start_row = 1
+            for i, movimento in enumerate(movimentos):
+                start_row = self.create_movement_table(start_row, data, movimento, i)
+
+    def add_data(self, data):
+        """
+        Encapsular todas abas para lidar com criação das abas
+        """
+        self.data = data
+        self.entrada.add_data(data)
+        self.relatorio.add_data(data)
+        self.hr.add_data(data)
+
+        # Tratar a duplicação do relatorio e hr com base na duração de dias
+        duration_days_str = data.get("Duração em dias", 1)
+        # Transformar str em int
+        try:
+            duration_days = int(duration_days_str)  # Convert to integer
+        except (ValueError, TypeError):
+            duration_days = 1  # Fallback to 1 if conversion fails
+            print(f"Warning: Invalid 'Duração em dias' value '{duration_days_str}', defaulting to 1.")
         
+        if duration_days > 1:
+            initial_date = datetime.strptime(data.get("Data", ""), "%d-%m-%Y")
+            for day in range(1, duration_days):
+                # Criar as novas abas
+                relatorio_copy = self.abaRelatorio(self.wb)
+                relatorio_copy.sheet2.title = f"Relatório ({day})"
+                hr_copy = self.abaHr(self.wb)
+                hr_copy.sheet3.title = f"Hr ({day})"
+
+                # Atualizar as datas novas
+                copy_data = data.copy()
+                new_date = initial_date + timedelta(days=day)
+                copy_data["Data"] = new_date.strftime("%d-%m-%Y")
+                relatorio_copy.add_data(copy_data)
+                hr_copy.add_data(copy_data)
+
     def save(self):
         # Ajustar largura das colunas automaticamente
-        for sheet in [self.entrada.sheet1, self.resumo.sheet2, self.hr.sheet3]:
+        for sheet in self.wb.worksheets:
             for col in sheet.columns:
                 max_length = 0
                 column = col[0].column_letter
-                has_data = False
                 for cell in col:
                     if cell.value:
-                        has_data = True
                         max_length = max(max_length, len(str(cell.value)))
                 adjusted_width = min((max_length + 2),100)
                 sheet.column_dimensions[column].width = adjusted_width
