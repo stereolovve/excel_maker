@@ -3,3 +3,5 @@ venv
 pycache
 /output
 /bases
+/dist
+/build

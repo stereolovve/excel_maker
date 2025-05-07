@@ -3,6 +3,7 @@ from tracemalloc import start
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Border, Side, Alignment, NamedStyle
 from datetime import datetime, timedelta
+from config.config import EXCEL_BASE_DIR
 
 # Create a new workbook
 class planilhaContagem:
@@ -424,5 +425,5 @@ class planilhaContagem:
                         max_length = max(max_length, len(str(cell.value)))
                 adjusted_width = min((max_length + 2), 100)
                 sheet.column_dimensions[column].width = adjusted_width
-        self.wb.save(f"output/{self.filename}")
+        self.wb.save(f"{EXCEL_BASE_DIR}/{self.filename}")
         print(f"Planilha salva como {self.filename}")
