@@ -16,7 +16,7 @@ def main(page: ft.Page):
     def save_to_excel(data):
         ponto = data.get("Ponto", "")
         codigo = data.get("Código", "")
-        wb = planilhaContagem(ponto=ponto, codigo=codigo)  # Passa o valor do campo Ponto e Código
+        wb = planilhaContagem(ponto=ponto, codigo=codigo)
         wb.add_data(data)
         wb.save()
         page.snack_bar = ft.SnackBar(content=ft.Text("Dados salvos com sucesso na planilha!"))
