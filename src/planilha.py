@@ -3,6 +3,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
 from openpyxl.chart import BarChart, Reference
 from openpyxl.utils import get_column_letter
+from openpyxl.utils.cell import coordinate_to_tuple  # Import the correct function
 from datetime import datetime, timedelta
 
 class planilhaContagem:
@@ -234,9 +235,9 @@ class planilhaContagem:
                             elif vt == 'Pesados':
                                 cell.value = f"=SUM(E{row},F{row},G{row})"
                             elif vt == 'Total':
-                                cell.value = f"=SUM(C{row},D{row},H{row})"
+                                cell.value = f"=SUM(C{row},D{row},I{row})"
                             elif vt == 'Total s/VUC':
-                                cell.value = f"=SUM(C{row},H{row})"
+                                cell.value = f"=SUM(C{row},I{row})"
                             cell.border = self.border
                             cell.alignment = self.center_align
                 else:
@@ -383,87 +384,135 @@ class planilhaContagem:
             header_row = start_row + 2
             subcat_row = start_row + 3
             table_columns = [
-                f'B{header_row}:C{header_row}', f'D{header_row}:D{subcat_row}', f'E{header_row}:G{header_row}',
-                f'H{header_row}:H{subcat_row}', f'I{header_row}:K{header_row}', f'L{header_row}:R{header_row}',
-                f'S{header_row}:T{header_row}', f'U{header_row}:U{subcat_row}', f'V{header_row}:AC{header_row}',
-                f'AD{header_row}:AD{subcat_row}'
+                (f'B{header_row}:C{header_row}', "Horas", None),
+                (f'D{header_row}:D{subcat_row}', "Leves", None),
+                (f'E{header_row}:G{header_row}', "Carretinha", None),
+                (f'H{header_row}:H{subcat_row}', "VUC", None),
+                (f'I{header_row}:K{header_row}', "Caminhões", None),
+                (f'L{header_row}:S{header_row}', "Carreta", None),
+                (f'T{header_row}:U{header_row}', "Ônibus", None),
+                (f'V{header_row}:V{subcat_row}', "Motos", None),
+                (f'W{header_row}:AD{header_row}', "Pesados", None),
+                (f'AE{header_row}:AE{subcat_row}', "Veículos Totais", None)
             ]
 
-            # Apply borders to individual cells before merging
-            for merge_range in table_columns:
+            # Step 1: Apply borders, fill, and values to individual cells before merging
+            for merge_range, header_value, _ in table_columns:
                 start_cell, end_cell = merge_range.split(':')
-                start_col, start_row_num = openpyxl.utils.coordinate_to_tuple(start_cell)
-                end_col, end_row_num = openpyxl.utils.coordinate_to_tuple(end_cell)
+                start_row_num, start_col = coordinate_to_tuple(start_cell)
+                end_row_num, end_col = coordinate_to_tuple(end_cell)
                 for row in range(start_row_num, end_row_num + 1):
                     for col in range(start_col, end_col + 1):
-                        col_letter = openpyxl.utils.get_column_letter(col)
+                        col_letter = get_column_letter(col)
                         cell = self.sheet2[f'{col_letter}{row}']
-                        # Apply the border based on whether this cell is in the "Pesados" section
-                        if col_letter in ['V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC'] and row == header_row:
+                        # Apply fill and border based on whether this cell is in the "Pesados" section
+                        if col_letter in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD'] and row == header_row:
                             cell.fill = self.pesados_fill
-                            if col_letter == 'V':
-                                cell.border = self.separator_border
-                            else:
-                                cell.border = self.border
-                        elif col_letter == 'V' and row == subcat_row:
+                            cell.border = self.border
+                        elif col_letter in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD'] and row == subcat_row:
+                            cell.fill = self.pesados_fill
+                            cell.border = self.border
+                        elif col_letter == 'V' and row in [header_row, subcat_row]:
+                            cell.fill = self.pesados_fill
                             cell.border = self.separator_border
                         else:
+                            if row == header_row:
+                                cell.fill = self.header_fill
                             cell.border = self.border
+                        # Set the header value only for the top-left cell
+                        if row == start_row_num and col == start_col and header_value:
+                            cell.value = header_value
+                            cell.font = self.header_font
+                            cell.alignment = self.center_align
 
-            # Now merge the cells
-            for header_info in table_columns:
-                self.sheet2.merge_cells(header_info)
+            # Step 2: Merge the cells
+            for merge_range, _, _ in table_columns:
+                self.sheet2.merge_cells(merge_range)
 
-            # Reapply border to the top-left cell of each merged area to ensure outer borders are visible
-            for merge_range in table_columns:
-                start_cell, _ = merge_range.split(':')
+            # Step 3: Reapply border and fill to the top-left cell of each merged area to ensure outer borders are visible
+            for merge_range, _, _ in table_columns:
+                start_cell, end_cell = merge_range.split(':')
+                start_row_num, start_col = coordinate_to_tuple(start_cell)
+                end_row_num, end_col = coordinate_to_tuple(end_cell)
+                # Reapply to the top-left cell of the merged area
                 cell = self.sheet2[start_cell]
-                # Determine if this cell is in the "Pesados" section
                 col_letter = start_cell[0]
-                if col_letter in ['V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC']:
+                if col_letter in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD']:
                     cell.fill = self.pesados_fill
-                    if col_letter == 'V':
-                        cell.border = self.separator_border
-                    else:
-                        cell.border = self.border
+                    cell.border = self.border
+                elif col_letter == 'V':
+                    cell.fill = self.pesados_fill
+                    cell.border = self.separator_border
                 else:
                     cell.fill = self.header_fill
                     cell.border = self.border
 
-            headers = [
-                (f'B{header_row}', "Horas"), (f'D{header_row}', "Leves"), (f'E{header_row}', "Carretinha"),
-                (f'H{header_row}', "VUC"), (f'I{header_row}', "Caminhões"), (f'L{header_row}', "Carreta"),
-                (f'S{header_row}', "Ônibus"), (f'U{header_row}', "Motos"), (f'V{header_row}', "Pesados"),
-                (f'AD{header_row}', "Veículos Totais"),
-            ]
-            for cell_pos, value in headers:
-                cell = self.sheet2[cell_pos]
-                cell.value = value
-                cell.font = self.header_font
-                cell.alignment = self.center_align
-                # Borders and fill already applied above
+                # Ensure the outer borders of the merged area are visible by reapplying borders to the edges
+                for row in range(start_row_num, end_row_num + 1):
+                    # Leftmost column of the merged area
+                    left_col_letter = get_column_letter(start_col)
+                    cell_left = self.sheet2[f'{left_col_letter}{row}']
+                    if left_col_letter in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD']:
+                        cell_left.border = self.border
+                    elif left_col_letter == 'V':
+                        cell_left.border = self.separator_border
+                    else:
+                        cell_left.border = self.border
 
+                    # Rightmost column of the merged area
+                    right_col_letter = get_column_letter(end_col)
+                    cell_right = self.sheet2[f'{right_col_letter}{row}']
+                    if right_col_letter in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD']:
+                        cell_right.border = self.border
+                    else:
+                        cell_right.border = self.border
+
+                # Top and bottom rows of the merged area
+                for col in range(start_col, end_col + 1):
+                    col_letter = get_column_letter(col)
+                    # Top row
+                    cell_top = self.sheet2[f'{col_letter}{start_row_num}']
+                    if col_letter in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD']:
+                        cell_top.border = self.border
+                    elif col_letter == 'V':
+                        cell_top.border = self.separator_border
+                    else:
+                        cell_top.border = self.border
+
+                    # Bottom row
+                    cell_bottom = self.sheet2[f'{col_letter}{end_row_num}']
+                    if col_letter in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD']:
+                        cell_bottom.border = self.border
+                    elif col_letter == 'V':
+                        cell_bottom.border = self.separator_border
+                    else:
+                        cell_bottom.border = self.border
+
+            # Define subcategories for non-merged cells only
             subcategories = [
                 (f'B{subcat_row}', "das"), (f'C{subcat_row}', "as"),
                 (f'E{subcat_row}', "1 Eixo"), (f'F{subcat_row}', "2 Eixos"), (f'G{subcat_row}', "3 Eixos"),
                 (f'I{subcat_row}', "2 Eixos"), (f'J{subcat_row}', "3 Eixos"), (f'K{subcat_row}', "4 Eixos"),
                 (f'L{subcat_row}', "2 E"), (f'M{subcat_row}', "3 E"), (f'N{subcat_row}', "4 E"),
                 (f'O{subcat_row}', "5 E"), (f'P{subcat_row}', "6 E"), (f'Q{subcat_row}', "7 E"),
-                (f'R{subcat_row}', "8 E"), (f'S{subcat_row}', "2 E"), (f'T{subcat_row}', "3 E ou +"),
-                (f'V{subcat_row}', "% Cam"), (f'W{subcat_row}', "Caminhões"),
-                (f'X{subcat_row}', "% Carr"), (f'Y{subcat_row}', "Carretas"),
-                (f'Z{subcat_row}', "% Ônib"), (f'AA{subcat_row}', "Ônibus"),
-                (f'AB{subcat_row}', "% Pes"), (f'AC{subcat_row}', "Total")
+                (f'R{subcat_row}', "8/9 E"), (f'S{subcat_row}', "10+ E"),
+                (f'T{subcat_row}', "2 E"), (f'U{subcat_row}', "3 E ou +"),
+                (f'W{subcat_row}', "% Cam"), (f'X{subcat_row}', "Caminhões"),
+                (f'Y{subcat_row}', "% Carr"), (f'Z{subcat_row}', "Carretas"),
+                (f'AA{subcat_row}', "% Ônib"), (f'AB{subcat_row}', "Ônibus"),
+                (f'AC{subcat_row}', "% Pes"), (f'AD{subcat_row}', "Total")
             ]
             for cell_pos, value in subcategories:
                 cell = self.sheet2[cell_pos]
                 cell.value = value
                 cell.font = Font(size=10)
-                # Apply different fill for Pesados section (columns V to AC)
-                if cell_pos[0] in ['V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC']:
-                    cell.fill = self.pesados_fill
+                if cell_pos[0] in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD']:
+                    cell.border = self.border
+                elif cell_pos[0] == 'V':
+                    cell.border = self.separator_border
+                else:
+                    cell.border = self.border
                 cell.alignment = self.center_align
-                # Borders already applied above
 
             das_inicio = datetime.strptime("00:00", "%H:%M")
             as_inicio = datetime.strptime("00:15", "%H:%M")
@@ -482,7 +531,7 @@ class planilhaContagem:
 
                 self.sheet2[f'D{row}'].value = 10  # Leves
                 self.sheet2[f'H{row}'].value = 5   # VUC
-                self.sheet2[f'U{row}'].value = 2   # Motos
+                self.sheet2[f'V{row}'].value = 2   # Motos
 
                 das_inicio += timedelta(minutes=15)
                 as_inicio += timedelta(minutes=15)
@@ -491,27 +540,27 @@ class planilhaContagem:
             table_start_row = start_row + 4
             table_end_row = start_row + 99
             for row in range(table_start_row, table_end_row + 1):
-                self.sheet2[f'W{row}'].value = f"=SUM(I{row}:K{row})"
-                self.sheet2[f'Y{row}'].value = f"=SUM(L{row}:R{row})"
-                self.sheet2[f'AA{row}'].value = f"=SUM(S{row}:T{row})"
-                self.sheet2[f'AC{row}'].value = f"=SUM(W{row},Y{row},AA{row})"
+                self.sheet2[f'X{row}'].value = f"=SUM(I{row}:K{row})"
+                self.sheet2[f'Z{row}'].value = f"=SUM(L{row}:S{row})"
+                self.sheet2[f'AB{row}'].value = f"=SUM(T{row}:U{row})"
+                self.sheet2[f'AD{row}'].value = f"=SUM(X{row},Z{row},AB{row})"
                 if row >= table_start_row:
-                    self.sheet2[f'AD{row}'].value = f"=SUM(D{row}:H{row},AC{row})"
-                self.sheet2[f'V{row}'].value = f"=IFERROR(W{row}/AD{row}, 0)"
-                self.sheet2[f'V{row}'].number_format = '0.0%'
-                self.sheet2[f'X{row}'].value = f"=IFERROR(Y{row}/AD{row}, 0)"
-                self.sheet2[f'X{row}'].number_format = '0.0%'
-                self.sheet2[f'Z{row}'].value = f"=IFERROR(AA{row}/AD{row}, 0)"
-                self.sheet2[f'Z{row}'].number_format = '0.0%'
-                self.sheet2[f'AB{row}'].value = f"=IFERROR(AC{row}/AD{row}, 0)"
-                self.sheet2[f'AB{row}'].number_format = '0.0%'
+                    self.sheet2[f'AE{row}'].value = f"=SUM(D{row}:H{row},V{row},AD{row})"
+                self.sheet2[f'W{row}'].value = f"=IFERROR(X{row}/AE{row}, 0)"
+                self.sheet2[f'W{row}'].number_format = '0.0%'
+                self.sheet2[f'Y{row}'].value = f"=IFERROR(Z{row}/AE{row}, 0)"
+                self.sheet2[f'Y{row}'].number_format = '0.0%'
+                self.sheet2[f'AA{row}'].value = f"=IFERROR(AB{row}/AE{row}, 0)"
+                self.sheet2[f'AA{row}'].number_format = '0.0%'
+                self.sheet2[f'AC{row}'].value = f"=IFERROR(AD{row}/AE{row}, 0)"
+                self.sheet2[f'AC{row}'].number_format = '0.0%'
 
                 start_col = self.parent.column_to_number('D')
-                end_col = self.parent.column_to_number('AD')
+                end_col = self.parent.column_to_number('AE')
                 for col in range(start_col, end_col + 1):
-                    col_letter = openpyxl.utils.get_column_letter(col)
+                    col_letter = get_column_letter(col)
                     cell = self.sheet2[f'{col_letter}{row}']
-                    if col_letter == 'V':
+                    if col_letter == 'W':
                         cell.border = self.separator_border
                     else:
                         cell.border = self.border
@@ -524,18 +573,18 @@ class planilhaContagem:
             cell.fill = self.header_fill
             cell.border = self.border
             cell.alignment = self.center_align
-            self.sheet2[f'C{footer_row}'].border = self.border  # Ensure C has border before merging
+            self.sheet2[f'C{footer_row}'].border = self.border
             self.sheet2.merge_cells(f'B{footer_row}:C{footer_row}')
 
             vehicle_totals = {}
             vehicle_types = ['Leves', 'Carretinha 1E', 'Carretinha 2E', 'Carretinha 3E', 'VUC',
                             'Caminhões 2E', 'Caminhões 3E', 'Caminhões 4E', 'Carreta 2E', 'Carreta 3E',
-                            'Carreta 4E', 'Carreta 5E', 'Carreta 6E', 'Carreta 7E', 'Carreta 8E',
+                            'Carreta 4E', 'Carreta 5E', 'Carreta 6E', 'Carreta 7E', 'Carreta 8/9E', 'Carreta 10+E',
                             'Ônibus 2E', 'Ônibus 3E+', 'Motos']
             start_col = self.parent.column_to_number('D')
-            end_col = self.parent.column_to_number('U')
+            end_col = self.parent.column_to_number('V')
             for col, vt in zip(range(start_col, end_col + 1), vehicle_types):
-                col_letter = openpyxl.utils.get_column_letter(col)
+                col_letter = get_column_letter(col)
                 cell = self.sheet2[f'{col_letter}{footer_row}']
                 cell.value = f"=SUM({col_letter}{table_start_row}:{col_letter}{table_end_row})"
                 cell.font = self.header_font
@@ -544,39 +593,36 @@ class planilhaContagem:
                 cell.alignment = self.center_align
                 vehicle_totals[vt] = 0
 
-            for col in ['V', 'X', 'Z', 'AB']:
+            for col in ['W', 'Y', 'AA', 'AC']:
                 cell = self.sheet2[f'{col}{footer_row}']
                 cell.value = f"=IFERROR(SUM({col}{table_start_row}:{col}{table_end_row}), 0)"
                 cell.font = self.header_font
                 cell.fill = self.pesados_fill
-                if col == 'V':
+                if col == 'W':
                     cell.border = self.separator_border
                 else:
                     cell.border = self.border
                 cell.alignment = self.center_align
                 cell.number_format = '0.0%'
 
-            for col in ['W', 'Y', 'AA', 'AC', 'AD']:
+            for col in ['X', 'Z', 'AB', 'AD', 'AE']:
                 cell = self.sheet2[f'{col}{footer_row}']
-                if col == 'W':
+                if col == 'X':
                     cell.value = f"=SUM(I{footer_row}:K{footer_row})"
-                elif col == 'Y':
-                    cell.value = f"=SUM(L{footer_row}:R{footer_row})"
-                elif col == 'AA':
-                    cell.value = f"=SUM(S{footer_row}:T{footer_row})"
-                elif col == 'AC':
-                    cell.value = f"=SUM(W{footer_row},Y{footer_row},AA{footer_row})"
+                elif col == 'Z':
+                    cell.value = f"=SUM(L{footer_row}:S{footer_row})"
+                elif col == 'AB':
+                    cell.value = f"=SUM(T{footer_row}:U{footer_row})"
                 elif col == 'AD':
-                    cell.value = f"=SUM(D{footer_row}:H{footer_row},AC{footer_row})"
+                    cell.value = f"=SUM(X{footer_row},Z{footer_row},AB{footer_row})"
+                elif col == 'AE':
+                    cell.value = f"=SUM(D{footer_row}:H{footer_row},V{footer_row},AD{footer_row})"
                 cell.font = self.header_font
-                if col in ['W', 'Y', 'AA', 'AC']:
+                if col in ['X', 'Z', 'AB', 'AD']:
                     cell.fill = self.pesados_fill
                 else:
                     cell.fill = self.header_fill
-                if col == 'V':
-                    cell.border = self.separator_border
-                else:
-                    cell.border = self.border
+                cell.border = self.border
                 cell.alignment = self.center_align
 
             return footer_row + 5, movimento_concatenado, vehicle_totals, data.get("Data", "")
@@ -641,85 +687,135 @@ class planilhaContagem:
             header_row = start_row + 2
             subcat_row = start_row + 3
             table_columns = [
-                f'B{header_row}:C{header_row}', f'D{header_row}:D{subcat_row}', f'E{header_row}:G{header_row}',
-                f'H{header_row}:H{subcat_row}', f'I{header_row}:K{header_row}', f'L{header_row}:R{header_row}',
-                f'S{header_row}:T{header_row}', f'U{header_row}:U{subcat_row}', f'V{header_row}:AC{header_row}',
-                f'AD{header_row}:AD{subcat_row}'
+                (f'B{header_row}:C{header_row}', "Horas", None),
+                (f'D{header_row}:D{subcat_row}', "Leves", None),
+                (f'E{header_row}:G{header_row}', "Carretinha", None),
+                (f'H{header_row}:H{subcat_row}', "VUC", None),
+                (f'I{header_row}:K{header_row}', "Caminhões", None),
+                (f'L{header_row}:S{header_row}', "Carreta", None),
+                (f'T{header_row}:U{header_row}', "Ônibus", None),
+                (f'V{header_row}:V{subcat_row}', "Motos", None),
+                (f'W{header_row}:AD{header_row}', "Pesados", None),
+                (f'AE{header_row}:AE{subcat_row}', "Veículos Totais", None)
             ]
 
-            # Apply borders to individual cells before merging
-            for merge_range in table_columns:
+            # Step 1: Apply borders, fill, and values to individual cells before merging
+            for merge_range, header_value, _ in table_columns:
                 start_cell, end_cell = merge_range.split(':')
-                start_col, start_row_num = openpyxl.utils.coordinate_to_tuple(start_cell)
-                end_col, end_row_num = openpyxl.utils.coordinate_to_tuple(end_cell)
+                start_row_num, start_col = coordinate_to_tuple(start_cell)
+                end_row_num, end_col = coordinate_to_tuple(end_cell)
                 for row in range(start_row_num, end_row_num + 1):
                     for col in range(start_col, end_col + 1):
-                        col_letter = openpyxl.utils.get_column_letter(col)
+                        col_letter = get_column_letter(col)
                         cell = self.sheet3[f'{col_letter}{row}']
-                        # Apply the border based on whether this cell is in the "Pesados" section
-                        if col_letter in ['V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC'] and row == header_row:
+                        # Apply fill and border based on whether this cell is in the "Pesados" section
+                        if col_letter in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD'] and row == header_row:
                             cell.fill = self.pesados_fill
-                            if col_letter == 'V':
-                                cell.border = self.separator_border
-                            else:
-                                cell.border = self.border
-                        elif col_letter == 'V' and row == subcat_row:
+                            cell.border = self.border
+                        elif col_letter in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD'] and row == subcat_row:
+                            cell.fill = self.pesados_fill
+                            cell.border = self.border
+                        elif col_letter == 'V' and row in [header_row, subcat_row]:
+                            cell.fill = self.pesados_fill
                             cell.border = self.separator_border
                         else:
+                            if row == header_row:
+                                cell.fill = self.header_fill
                             cell.border = self.border
+                        # Set the header value only for the top-left cell
+                        if row == start_row_num and col == start_col and header_value:
+                            cell.value = header_value
+                            cell.font = self.header_font
+                            cell.alignment = self.center_align
 
-            # Now merge the cells
-            for header_info in table_columns:
-                self.sheet3.merge_cells(header_info)
+            # Step 2: Merge the cells
+            for merge_range, _, _ in table_columns:
+                self.sheet3.merge_cells(merge_range)
 
-            # Reapply border to the top-left cell of each merged area to ensure outer borders are visible
-            for merge_range in table_columns:
-                start_cell, _ = merge_range.split(':')
+            # Step 3: Reapply border and fill to the top-left cell of each merged area to ensure outer borders are visible
+            for merge_range, _, _ in table_columns:
+                start_cell, end_cell = merge_range.split(':')
+                start_row_num, start_col = coordinate_to_tuple(start_cell)
+                end_row_num, end_col = coordinate_to_tuple(end_cell)
+                # Reapply to the top-left cell of the merged area
                 cell = self.sheet3[start_cell]
                 col_letter = start_cell[0]
-                if col_letter in ['V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC']:
+                if col_letter in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD']:
                     cell.fill = self.pesados_fill
-                    if col_letter == 'V':
-                        cell.border = self.separator_border
-                    else:
-                        cell.border = self.border
+                    cell.border = self.border
+                elif col_letter == 'V':
+                    cell.fill = self.pesados_fill
+                    cell.border = self.separator_border
                 else:
                     cell.fill = self.header_fill
                     cell.border = self.border
 
-            headers = [
-                (f'B{header_row}', "Horas"), (f'D{header_row}', "Leves"), (f'E{header_row}', "Carretinha"),
-                (f'H{header_row}', "VUC"), (f'I{header_row}', "Caminhões"), (f'L{header_row}', "Carreta"),
-                (f'S{header_row}', "Ônibus"), (f'U{header_row}', "Motos"), (f'V{header_row}', "Pesados"),
-                (f'AD{header_row}', "Veículos Totais"),
-            ]
-            for cell_pos, value in headers:
-                cell = self.sheet3[cell_pos]
-                cell.value = value
-                cell.font = self.header_font
-                cell.alignment = self.center_align
-                # Borders and fill already applied above
+                # Ensure the outer borders of the merged area are visible by reapplying borders to the edges
+                for row in range(start_row_num, end_row_num + 1):
+                    # Leftmost column of the merged area
+                    left_col_letter = get_column_letter(start_col)
+                    cell_left = self.sheet3[f'{left_col_letter}{row}']
+                    if left_col_letter in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD']:
+                        cell_left.border = self.border
+                    elif left_col_letter == 'V':
+                        cell_left.border = self.separator_border
+                    else:
+                        cell_left.border = self.border
 
+                    # Rightmost column of the merged area
+                    right_col_letter = get_column_letter(end_col)
+                    cell_right = self.sheet3[f'{right_col_letter}{row}']
+                    if right_col_letter in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD']:
+                        cell_right.border = self.border
+                    else:
+                        cell_right.border = self.border
+
+                # Top and bottom rows of the merged area
+                for col in range(start_col, end_col + 1):
+                    col_letter = get_column_letter(col)
+                    # Top row
+                    cell_top = self.sheet3[f'{col_letter}{start_row_num}']
+                    if col_letter in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD']:
+                        cell_top.border = self.border
+                    elif col_letter == 'V':
+                        cell_top.border = self.separator_border
+                    else:
+                        cell_top.border = self.border
+
+                    # Bottom row
+                    cell_bottom = self.sheet3[f'{col_letter}{end_row_num}']
+                    if col_letter in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD']:
+                        cell_bottom.border = self.border
+                    elif col_letter == 'V':
+                        cell_bottom.border = self.separator_border
+                    else:
+                        cell_bottom.border = self.border
+
+            # Define subcategories for non-merged cells only
             subcategories = [
                 (f'B{subcat_row}', "das"), (f'C{subcat_row}', "as"),
                 (f'E{subcat_row}', "1 Eixo"), (f'F{subcat_row}', "2 Eixos"), (f'G{subcat_row}', "3 Eixos"),
                 (f'I{subcat_row}', "2 Eixos"), (f'J{subcat_row}', "3 Eixos"), (f'K{subcat_row}', "4 Eixos"),
                 (f'L{subcat_row}', "2 E"), (f'M{subcat_row}', "3 E"), (f'N{subcat_row}', "4 E"),
                 (f'O{subcat_row}', "5 E"), (f'P{subcat_row}', "6 E"), (f'Q{subcat_row}', "7 E"),
-                (f'R{subcat_row}', "8 E"), (f'S{subcat_row}', "2 E"), (f'T{subcat_row}', "3 E ou +"),
-                (f'V{subcat_row}', "% Cam"), (f'W{subcat_row}', "Caminhões"),
-                (f'X{subcat_row}', "% Carr"), (f'Y{subcat_row}', "Carretas"),
-                (f'Z{subcat_row}', "% Ônib"), (f'AA{subcat_row}', "Ônibus"),
-                (f'AB{subcat_row}', "% Pes"), (f'AC{subcat_row}', "Total")
+                (f'R{subcat_row}', "8/9 E"), (f'S{subcat_row}', "10+ E"),
+                (f'T{subcat_row}', "2 E"), (f'U{subcat_row}', "3 E ou +"),
+                (f'W{subcat_row}', "% Cam"), (f'X{subcat_row}', "Caminhões"),
+                (f'Y{subcat_row}', "% Carr"), (f'Z{subcat_row}', "Carretas"),
+                (f'AA{subcat_row}', "% Ônib"), (f'AB{subcat_row}', "Ônibus"),
+                (f'AC{subcat_row}', "% Pes"), (f'AD{subcat_row}', "Total")
             ]
             for cell_pos, value in subcategories:
                 cell = self.sheet3[cell_pos]
                 cell.value = value
                 cell.font = Font(size=10)
-                if cell_pos[0] in ['V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC']:
-                    cell.fill = self.pesados_fill
+                if cell_pos[0] in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD']:
+                    cell.border = self.border
+                elif cell_pos[0] == 'V':
+                    cell.border = self.separator_border
+                else:
+                    cell.border = self.border
                 cell.alignment = self.center_align
-                # Borders already applied above
 
             das_inicio = datetime.strptime("00:00", "%H:%M")
             as_inicio = datetime.strptime("01:00", "%H:%M")
@@ -747,12 +843,12 @@ class planilhaContagem:
                 for hr_row, hour in enumerate(range(24), table_start_row):
                     rel_row_start = 5 + (hour * 4)
                     col_mapping = {
-                        'D': 'D', 'H': 'H', 'U': 'U',
+                        'D': 'D', 'H': 'H', 'V': 'V',
                         'E': 'E', 'F': 'F', 'G': 'G',
                         'I': 'I', 'J': 'J', 'K': 'K',
-                        'L': 'L', 'M': 'M', 'N': 'N', 'O': 'O', 'P': 'P', 'Q': 'Q', 'R': 'R',
-                        'S': 'S', 'T': 'T',
-                        'W': 'W', 'Y': 'Y', 'AA': 'AA', 'AC': 'AC', 'AD': 'AD'
+                        'L': 'L', 'M': 'M', 'N': 'N', 'O': 'O', 'P': 'P', 'Q': 'Q', 'R': 'R', 'S': 'S',
+                        'T': 'T', 'U': 'U',
+                        'X': 'X', 'Z': 'Z', 'AB': 'AB', 'AD': 'AD', 'AE': 'AE'
                     }
                     for col in col_mapping:
                         self.sheet3[f'{col}{hr_row}'].value = (
@@ -766,26 +862,26 @@ class planilhaContagem:
                 cell.alignment = self.center_align
 
             for row in range(table_start_row, table_end_row + 1):
-                self.sheet3[f'W{row}'].value = f"=SUM(I{row}:K{row})"
-                self.sheet3[f'Y{row}'].value = f"=SUM(L{row}:R{row})"
-                self.sheet3[f'AA{row}'].value = f"=SUM(S{row}:T{row})"
-                self.sheet3[f'AC{row}'].value = f"=SUM(W{row},Y{row},AA{row})"
-                self.sheet3[f'AD{row}'].value = f"=SUM(D{row}:H{row},AC{row})"
-                self.sheet3[f'V{row}'].value = f"=IFERROR(W{row}/AD{row}, 0)"
-                self.sheet3[f'V{row}'].number_format = '0.0%'
-                self.sheet3[f'X{row}'].value = f"=IFERROR(Y{row}/AD{row}, 0)"
-                self.sheet3[f'X{row}'].number_format = '0.0%'
-                self.sheet3[f'Z{row}'].value = f"=IFERROR(AA{row}/AD{row}, 0)"
-                self.sheet3[f'Z{row}'].number_format = '0.0%'
-                self.sheet3[f'AB{row}'].value = f"=IFERROR(AC{row}/AD{row}, 0)"
-                self.sheet3[f'AB{row}'].number_format = '0.0%'
+                self.sheet3[f'X{row}'].value = f"=SUM(I{row}:K{row})"
+                self.sheet3[f'Z{row}'].value = f"=SUM(L{row}:S{row})"
+                self.sheet3[f'AB{row}'].value = f"=SUM(T{row}:U{row})"
+                self.sheet3[f'AD{row}'].value = f"=SUM(X{row},Z{row},AB{row})"
+                self.sheet3[f'AE{row}'].value = f"=SUM(D{row}:H{row},V{row},AD{row})"
+                self.sheet3[f'W{row}'].value = f"=IFERROR(X{row}/AE{row}, 0)"
+                self.sheet3[f'W{row}'].number_format = '0.0%'
+                self.sheet3[f'Y{row}'].value = f"=IFERROR(Z{row}/AE{row}, 0)"
+                self.sheet3[f'Y{row}'].number_format = '0.0%'
+                self.sheet3[f'AA{row}'].value = f"=IFERROR(AB{row}/AE{row}, 0)"
+                self.sheet3[f'AA{row}'].number_format = '0.0%'
+                self.sheet3[f'AC{row}'].value = f"=IFERROR(AD{row}/AE{row}, 0)"
+                self.sheet3[f'AC{row}'].number_format = '0.0%'
 
                 start_col = self.parent.column_to_number('D')
-                end_col = self.parent.column_to_number('AD')
+                end_col = self.parent.column_to_number('AE')
                 for col in range(start_col, end_col + 1):
-                    col_letter = openpyxl.utils.get_column_letter(col)
+                    col_letter = get_column_letter(col)
                     cell = self.sheet3[f'{col_letter}{row}']
-                    if col_letter == 'V':
+                    if col_letter == 'W':
                         cell.border = self.separator_border
                     else:
                         cell.border = self.border
@@ -798,13 +894,13 @@ class planilhaContagem:
             cell.fill = self.header_fill
             cell.border = self.border
             cell.alignment = self.center_align
-            self.sheet3[f'C{footer_row}'].border = self.border  # Ensure C has border before merging
+            self.sheet3[f'C{footer_row}'].border = self.border
             self.sheet3.merge_cells(f'B{footer_row}:C{footer_row}')
 
             start_col = self.parent.column_to_number('D')
-            end_col = self.parent.column_to_number('U')
+            end_col = self.parent.column_to_number('V')
             for col in range(start_col, end_col + 1):
-                col_letter = openpyxl.utils.get_column_letter(col)
+                col_letter = get_column_letter(col)
                 cell = self.sheet3[f'{col_letter}{footer_row}']
                 cell.value = f"=SUM({col_letter}{table_start_row}:{col_letter}{table_end_row})"
                 cell.font = self.header_font
@@ -812,39 +908,36 @@ class planilhaContagem:
                 cell.border = self.border
                 cell.alignment = self.center_align
 
-            for col in ['V', 'X', 'Z', 'AB']:
+            for col in ['W', 'Y', 'AA', 'AC']:
                 cell = self.sheet3[f'{col}{footer_row}']
                 cell.value = f"=IFERROR(SUM({col}{table_start_row}:{col}{table_end_row}), 0)"
                 cell.font = self.header_font
                 cell.fill = self.pesados_fill
-                if col == 'V':
+                if col == 'W':
                     cell.border = self.separator_border
                 else:
                     cell.border = self.border
                 cell.alignment = self.center_align
                 cell.number_format = '0.0%'
 
-            for col in ['W', 'Y', 'AA', 'AC', 'AD']:
+            for col in ['X', 'Z', 'AB', 'AD', 'AE']:
                 cell = self.sheet3[f'{col}{footer_row}']
-                if col == 'W':
+                if col == 'X':
                     cell.value = f"=SUM(I{footer_row}:K{footer_row})"
-                elif col == 'Y':
-                    cell.value = f"=SUM(L{footer_row}:R{footer_row})"
-                elif col == 'AA':
-                    cell.value = f"=SUM(S{footer_row}:T{footer_row})"
-                elif col == 'AC':
-                    cell.value = f"=SUM(W{footer_row},Y{footer_row},AA{footer_row})"
+                elif col == 'Z':
+                    cell.value = f"=SUM(L{footer_row}:S{footer_row})"
+                elif col == 'AB':
+                    cell.value = f"=SUM(T{footer_row}:U{footer_row})"
                 elif col == 'AD':
-                    cell.value = f"=SUM(D{footer_row}:H{footer_row},AC{footer_row})"
+                    cell.value = f"=SUM(X{footer_row},Z{footer_row},AB{footer_row})"
+                elif col == 'AE':
+                    cell.value = f"=SUM(D{footer_row}:H{footer_row},V{footer_row},AD{footer_row})"
                 cell.font = self.header_font
-                if col in ['W', 'Y', 'AA', 'AC']:
+                if col in ['X', 'Z', 'AB', 'AD']:
                     cell.fill = self.pesados_fill
                 else:
                     cell.fill = self.header_fill
-                if col == 'V':
-                    cell.border = self.separator_border
-                else:
-                    cell.border = self.border
+                cell.border = self.border
                 cell.alignment = self.center_align
 
             return footer_row + 5
