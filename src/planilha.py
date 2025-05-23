@@ -12,7 +12,7 @@ class planilhaContagem:
         self.wb = Workbook()
         self.vehicle_data = []  # Store data for summary
         self.entrada = self.abaEntrada(self.wb)
-        self.resumo = self.abaResumo(self.wb)
+        self.resumo = self.abaResumo(self.wb, self)
         self.relatorio = self.abaRelatorio(self.wb, self)  # Pass parent
         self.hr = self.abaHr(self.wb, self)  # Pass parent
 
@@ -77,8 +77,9 @@ class planilhaContagem:
                     cell.alignment = self.center_align
 
     class abaResumo:
-        def __init__(self, wb):
+        def __init__(self, wb, parent):
             self.wb = wb
+            self.parent = parent
             self.sheet = self.wb.create_sheet(title="Resumo")
             self.header_font = Font(bold=True)
             self.header_fill = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
@@ -322,14 +323,22 @@ class planilhaContagem:
                 chart.set_categories(cats)
                 self.sheet.add_chart(chart, f"M{start_row}")
 
+            fixed_width = 75 / 7  # Aproximadamente 10.71 unidades (75 pixels)
+            for col_num in range(3, 12):  # Colunas C (3) a K (11)
+                col_letter = get_column_letter(col_num)
+                self.sheet.column_dimensions[col_letter].width = fixed_width
+
+            # Ajustar dinamicamente apenas as outras colunas
             for col in self.sheet.columns:
-                max_length = 0
-                column = col[0].column_letter
-                for cell in col:
-                    if cell.value:
-                        max_length = max(max_length, len(str(cell.value)))
-                adjusted_width = min((max_length + 2), 50)
-                self.sheet.column_dimensions[column].width = adjusted_width
+                col_letter = col[0].column_letter
+                col_num = self.parent.column_to_number(col_letter)  # Use parent.column_to_number
+                if col_num < 3 or col_num > 11:  # Ignorar colunas C a K
+                    max_length = 0
+                    for cell in col:
+                        if cell.value:
+                            max_length = max(max_length, len(str(cell.value)))
+                    adjusted_width = min((max_length + 2), 50)
+                    self.sheet.column_dimensions[col_letter].width = adjusted_width
 
     class abaRelatorio:
         def __init__(self, wb, parent):
@@ -405,21 +414,19 @@ class planilhaContagem:
                     for col in range(start_col, end_col + 1):
                         col_letter = get_column_letter(col)
                         cell = self.sheet2[f'{col_letter}{row}']
-                        # Apply fill and border based on whether this cell is in the "Pesados" section
                         if col_letter in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD'] and row == header_row:
                             cell.fill = self.pesados_fill
                             cell.border = self.border
                         elif col_letter in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD'] and row == subcat_row:
                             cell.fill = self.pesados_fill
                             cell.border = self.border
-                        elif col_letter == 'V' and row in [header_row, subcat_row]:
+                        elif col_letter == 'W' and row in [header_row, subcat_row]:  # Ajustado para 'W'
                             cell.fill = self.pesados_fill
                             cell.border = self.separator_border
                         else:
                             if row == header_row:
                                 cell.fill = self.header_fill
                             cell.border = self.border
-                        # Set the header value only for the top-left cell
                         if row == start_row_num and col == start_col and header_value:
                             cell.value = header_value
                             cell.font = self.header_font
@@ -434,32 +441,28 @@ class planilhaContagem:
                 start_cell, end_cell = merge_range.split(':')
                 start_row_num, start_col = coordinate_to_tuple(start_cell)
                 end_row_num, end_col = coordinate_to_tuple(end_cell)
-                # Reapply to the top-left cell of the merged area
                 cell = self.sheet2[start_cell]
                 col_letter = start_cell[0]
                 if col_letter in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD']:
                     cell.fill = self.pesados_fill
                     cell.border = self.border
-                elif col_letter == 'V':
+                elif col_letter == 'W':  # Ajustado para 'W'
                     cell.fill = self.pesados_fill
                     cell.border = self.separator_border
                 else:
                     cell.fill = self.header_fill
                     cell.border = self.border
 
-                # Ensure the outer borders of the merged area are visible by reapplying borders to the edges
                 for row in range(start_row_num, end_row_num + 1):
-                    # Leftmost column of the merged area
                     left_col_letter = get_column_letter(start_col)
                     cell_left = self.sheet2[f'{left_col_letter}{row}']
                     if left_col_letter in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD']:
                         cell_left.border = self.border
-                    elif left_col_letter == 'V':
+                    elif left_col_letter == 'W':  # Ajustado para 'W'
                         cell_left.border = self.separator_border
                     else:
                         cell_left.border = self.border
 
-                    # Rightmost column of the merged area
                     right_col_letter = get_column_letter(end_col)
                     cell_right = self.sheet2[f'{right_col_letter}{row}']
                     if right_col_letter in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD']:
@@ -467,24 +470,17 @@ class planilhaContagem:
                     else:
                         cell_right.border = self.border
 
-                # Top and bottom rows of the merged area
                 for col in range(start_col, end_col + 1):
                     col_letter = get_column_letter(col)
-                    # Top row
                     cell_top = self.sheet2[f'{col_letter}{start_row_num}']
                     if col_letter in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD']:
                         cell_top.border = self.border
-                    elif col_letter == 'V':
-                        cell_top.border = self.separator_border
                     else:
                         cell_top.border = self.border
 
-                    # Bottom row
                     cell_bottom = self.sheet2[f'{col_letter}{end_row_num}']
                     if col_letter in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD']:
                         cell_bottom.border = self.border
-                    elif col_letter == 'V':
-                        cell_bottom.border = self.separator_border
                     else:
                         cell_bottom.border = self.border
 
@@ -506,13 +502,13 @@ class planilhaContagem:
                 cell = self.sheet2[cell_pos]
                 cell.value = value
                 cell.font = Font(size=10)
-                if cell_pos[0] in ['W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD']:
-                    cell.border = self.border
-                elif cell_pos[0] == 'V':
+                if cell_pos[0] == 'W':  # Ajustado para 'W'
                     cell.border = self.separator_border
                 else:
                     cell.border = self.border
                 cell.alignment = self.center_align
+
+            # ... (o restante do método, como preenchimento dos dados, não precisa de ajustes)
 
             das_inicio = datetime.strptime("00:00", "%H:%M")
             as_inicio = datetime.strptime("00:15", "%H:%M")
@@ -624,6 +620,11 @@ class planilhaContagem:
                     cell.fill = self.header_fill
                 cell.border = self.border
                 cell.alignment = self.center_align
+            # Definir largura fixa para colunas de veículos e totais (D a AE)
+            fixed_width = 75 / 7  # Aproximadamente 10.71 unidades (75 pixels)
+            for col_num in range(4, 31):  # Colunas D (4) a AE (31)
+                col_letter = get_column_letter(col_num)
+                self.sheet2.column_dimensions[col_letter].width = fixed_width
 
             return footer_row + 5, movimento_concatenado, vehicle_totals, data.get("Data", "")
 
@@ -939,7 +940,11 @@ class planilhaContagem:
                     cell.fill = self.header_fill
                 cell.border = self.border
                 cell.alignment = self.center_align
-
+            # Definir largura fixa para colunas de veículos e totais (D a AE)
+            fixed_width = 75 / 7  # Aproximadamente 10.71 unidades (75 pixels)
+            for col_num in range(4, 31):  # Colunas D (4) a AE (31)
+                col_letter = get_column_letter(col_num)
+                self.sheet3.column_dimensions[col_letter].width = fixed_width
             return footer_row + 5
 
         def add_data(self, data):
@@ -988,14 +993,26 @@ class planilhaContagem:
         self.resumo.add_data(self.vehicle_data, days)
 
     def save(self):
+        fixed_width = 75 / 7  # Aproximadamente 10.71 unidades (75 pixels)
         for sheet in self.wb.worksheets:
+            sheet_name = sheet.title
             for col in sheet.columns:
-                max_length = 0
-                column = col[0].column_letter
-                for cell in col:
-                    if cell.value:
-                        max_length = max(max_length, len(str(cell.value)))
-                adjusted_width = min((max_length + 2), 100)
-                sheet.column_dimensions[column].width = adjusted_width
+                col_letter = col[0].column_letter
+                col_num = self.column_to_number(col_letter)
+                # Verificar se a coluna está na faixa que deve ter largura fixa
+                if sheet_name == "Resumo" and 3 <= col_num <= 11:  # Colunas C a K
+                    sheet.column_dimensions[col_letter].width = fixed_width
+                elif sheet_name.startswith("Relatório") and 4 <= col_num <= 31:  # Colunas D a AE
+                    sheet.column_dimensions[col_letter].width = fixed_width
+                elif sheet_name.startswith("Hr") and 4 <= col_num <= 31:  # Colunas D a AE
+                    sheet.column_dimensions[col_letter].width = fixed_width
+                else:
+                    # Ajustar dinamicamente as outras colunas
+                    max_length = 0
+                    for cell in col:
+                        if cell.value:
+                            max_length = max(max_length, len(str(cell.value)))
+                    adjusted_width = min((max_length + 2), 100)
+                    sheet.column_dimensions[col_letter].width = adjusted_width
         self.wb.save(f"output/{self.filename}")
         print(f"Planilha salva como {self.filename}")
